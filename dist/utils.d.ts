@@ -1,0 +1,24 @@
+import { PriceFunction, ZonefileData } from "./interfaces";
+import { ClarityValue } from "@stacks/transactions";
+import { CallbackFunction, NetworkType } from "./config";
+import { StacksTestnet, StacksMainnet } from "@stacks/network";
+export declare function decodeFQN(fqdn: string): {
+    name: string;
+    namespace: string;
+    subdomain?: string;
+};
+export declare function parsePriceFunction(data: {
+    [key: string]: ClarityValue;
+}): PriceFunction;
+export declare const defaultPriceFunction: PriceFunction;
+export declare function asciiToUtf8(asciiCodes: string): string;
+export declare function generateRandomAddress(): string;
+export declare function parseZonefile(zonefileString: string): ZonefileData;
+export declare function stringifyZonefile(zonefileData: ZonefileData): string;
+export declare function createZonefileData(params: ZonefileData): ZonefileData;
+export declare function getNetwork(networkType: NetworkType): StacksMainnet | StacksTestnet;
+export declare function getFallbackUrl(): string;
+export declare function addCallbacks<T>(options: T, onFinish?: CallbackFunction, onCancel?: CallbackFunction): T & {
+    onFinish?: CallbackFunction;
+    onCancel?: CallbackFunction;
+};

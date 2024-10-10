@@ -1,0 +1,35 @@
+{
+  "name": "bns-v2-sdk",
+  "version": "1.2.0",
+  "description": "The official BNS V2 SDK for interacting with Stacks Blockchain",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "lint": "eslint src --ext .ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "BNS",
+    "Stacks",
+    "Blockchain",
+    "SDK"
+  ],
+  "author": "Pato",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "eslint": "^8.43.0",
+    "eslint-config-airbnb-typescript": "^17.1.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsx-a11y": "^6.7.1",
+    "eslint-plugin-react": "^7.32.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
+  },
+  "dependencies": {
+    "@stacks/connect": "^7.7.1",
+    "dotenv": "^16.4.5"
+  }
+}
