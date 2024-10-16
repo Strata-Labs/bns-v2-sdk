@@ -521,22 +521,26 @@ export async function buildNameClaimFastTx({
     ? contractPrincipalCV(sendTo.split(".")[0], sendTo.split(".")[1])
     : standardPrincipalCV(sendTo);
 
-  const burnSTXPostCondition = createSTXPostCondition(
-    senderAddress,
-    FungibleConditionCode.Equal,
-    stxToBurn
-  );
+  let postConditions = [];
+  if (stxToBurn > 0) {
+    const burnSTXPostCondition = createSTXPostCondition(
+      senderAddress,
+      FungibleConditionCode.Equal,
+      stxToBurn
+    );
+    postConditions.push(burnSTXPostCondition);
+  }
 
   return bnsV2ContractCall({
     functionName: bnsFunctionName,
     functionArgs: [
-      bufferCVFromString(name),
-      bufferCVFromString(namespace),
+      bufferCV(Buffer.from(name)),
+      bufferCV(Buffer.from(namespace)),
       principalCV,
     ],
     network,
     address: senderAddress,
-    postConditions: [burnSTXPostCondition],
+    postConditions,
     onFinish,
     onCancel,
   });
@@ -556,21 +560,25 @@ export async function buildPreorderNameTx({
   if (subdomain) {
     throw new Error("Cannot preorder a subdomain using preorderName()");
   }
-  const saltedNamesBytes = utf8ToBytes(`${fullyQualifiedName}${salt}`);
+  const saltedNamesBytes = Buffer.from(`${fullyQualifiedName}${salt}`);
   const hashedSaltedName = hash160(saltedNamesBytes);
 
-  const burnSTXPostCondition = createSTXPostCondition(
-    senderAddress,
-    FungibleConditionCode.Equal,
-    stxToBurn
-  );
+  let postConditions = [];
+  if (stxToBurn > 0) {
+    const burnSTXPostCondition = createSTXPostCondition(
+      senderAddress,
+      FungibleConditionCode.Equal,
+      stxToBurn
+    );
+    postConditions.push(burnSTXPostCondition);
+  }
 
   return bnsV2ContractCall({
     functionName: bnsFunctionName,
     functionArgs: [bufferCV(hashedSaltedName), uintCV(stxToBurn)],
     address: senderAddress,
     network,
-    postConditions: [burnSTXPostCondition],
+    postConditions,
     onFinish,
     onCancel,
   });
@@ -590,22 +598,27 @@ export async function buildRegisterNameTx({
   if (subdomain) {
     throw new Error("Cannot register a subdomain using registerName()");
   }
-  const burnSTXPostCondition = makeContractSTXPostCondition(
-    getBnsContractAddress(network),
-    BnsContractName,
-    FungibleConditionCode.Equal,
-    stxToBurn
-  );
+
+  let postConditions = [];
+  if (stxToBurn > 0) {
+    const burnSTXPostCondition = makeContractSTXPostCondition(
+      getBnsContractAddress(network),
+      BnsContractName,
+      FungibleConditionCode.Equal,
+      stxToBurn
+    );
+    postConditions.push(burnSTXPostCondition);
+  }
 
   return bnsV2ContractCall({
     functionName: bnsFunctionName,
     functionArgs: [
-      bufferCVFromString(namespace),
-      bufferCVFromString(name),
-      bufferCVFromString(salt),
+      bufferCV(Buffer.from(namespace)),
+      bufferCV(Buffer.from(name)),
+      bufferCV(Buffer.from(salt)),
     ],
     network,
-    postConditions: [burnSTXPostCondition],
+    postConditions,
     address: senderAddress,
     onFinish,
     onCancel,
@@ -640,12 +653,16 @@ export async function buildPreviousRegisterNameTx({
     throw new Error("Failed to fetch current owner of the name");
   }
 
-  const burnSTXPostCondition = makeContractSTXPostCondition(
-    getBnsContractAddress(network),
-    BnsContractName,
-    FungibleConditionCode.Equal,
-    stxToBurn
-  );
+  let postConditions = [];
+  if (stxToBurn > 0) {
+    const burnSTXPostCondition = makeContractSTXPostCondition(
+      getBnsContractAddress(network),
+      BnsContractName,
+      FungibleConditionCode.Equal,
+      stxToBurn
+    );
+    postConditions.push(burnSTXPostCondition);
+  }
 
   const transferNFTPostCondition = makeStandardNonFungiblePostCondition(
     currentOwner,
@@ -653,16 +670,17 @@ export async function buildPreviousRegisterNameTx({
     createAssetInfo(getBnsContractAddress(network), BnsContractName, "BNS-V2"),
     uintCV(nameId)
   );
+  postConditions.push(transferNFTPostCondition);
 
   return bnsV2ContractCall({
     functionName: bnsFunctionName,
     functionArgs: [
-      bufferCVFromString(namespace),
-      bufferCVFromString(name),
-      bufferCVFromString(salt),
+      bufferCV(Buffer.from(namespace)),
+      bufferCV(Buffer.from(name)),
+      bufferCV(Buffer.from(salt)),
     ],
     network,
-    postConditions: [burnSTXPostCondition, transferNFTPostCondition],
+    postConditions,
     address: senderAddress,
     onFinish,
     onCancel,

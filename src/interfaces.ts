@@ -281,7 +281,7 @@ export interface NamespaceFreezePriceOptions {
 
 export interface NameFastClaimOptions {
   fullyQualifiedName: string;
-  stxToBurn: number;
+  stxToBurn: number | bigint;
   sendTo: string;
   senderAddress: string;
   network: NetworkType;
@@ -293,7 +293,7 @@ export interface NameFastClaimOptions {
 export interface PreorderNameOptions {
   fullyQualifiedName: string;
   salt: string;
-  stxToBurn: IntegerType;
+  stxToBurn: number | bigint;
   senderAddress: string;
   network: NetworkType;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -304,7 +304,7 @@ export interface PreorderNameOptions {
 export interface RegisterNameOptions {
   fullyQualifiedName: string;
   salt: string;
-  stxToBurn: IntegerType;
+  stxToBurn: number | bigint;
   senderAddress: string;
   network: NetworkType;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
