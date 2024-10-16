@@ -23,13 +23,13 @@ async function executeReadOnlyCall(
   contractAddress: string,
   contractName: string,
   network: StacksMainnet
-) {
+): Promise<ClarityValue> {
   const fallbackUrl = getFallbackUrl();
 
-  async function attemptCall(url: string) {
+  async function attemptCall(url: string): Promise<ClarityValue> {
     const currentNetwork = new StacksMainnet({ url });
     try {
-      return await callReadOnlyFunction({
+      const response = await callReadOnlyFunction({
         contractAddress,
         contractName,
         functionName: options.functionName,
@@ -37,7 +37,18 @@ async function executeReadOnlyCall(
         senderAddress: options.senderAddress,
         network: currentNetwork,
       });
-    } catch (error) {
+
+      // If the response contains an error, throw it
+      if ((response as any).error) {
+        throw new Error((response as any).error);
+      }
+
+      return response;
+    } catch (error: any) {
+      // Optionally, log the error details
+      console.error(`Error during attemptCall with url ${url}:`, error);
+
+      // Re-throw the error to be caught by the outer try...catch
       throw error;
     }
   }
@@ -45,8 +56,20 @@ async function executeReadOnlyCall(
   try {
     return await attemptCall(network.coreApiUrl);
   } catch (error) {
+    console.warn(
+      `Error with primary URL (${network.coreApiUrl}), attempting fallback URL...`
+    );
+
     if (fallbackUrl && fallbackUrl !== network.coreApiUrl) {
-      return await attemptCall(fallbackUrl);
+      try {
+        return await attemptCall(fallbackUrl);
+      } catch (fallbackError) {
+        console.error(
+          `Error with fallback URL (${fallbackUrl}):`,
+          fallbackError
+        );
+        throw fallbackError;
+      }
     } else {
       throw error;
     }
