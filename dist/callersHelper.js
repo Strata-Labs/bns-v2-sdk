@@ -2,19 +2,29 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bnsV2ReadOnlyCall = bnsV2ReadOnlyCall;
 exports.zonefileReadOnlyCall = zonefileReadOnlyCall;
-exports.bnsV2ContractCall = bnsV2ContractCall;
-exports.zonefileContractCall = zonefileContractCall;
 const transactions_1 = require("@stacks/transactions");
-const connect_1 = require("@stacks/connect");
 const config_1 = require("./config");
-const utils_1 = require("./utils");
 const network_1 = require("@stacks/network");
-async function executeReadOnlyCall(options, contractAddress, contractName, network) {
-    const fallbackUrl = (0, utils_1.getFallbackUrl)();
+const network_2 = require("./network");
+const debug_1 = require("./debug");
+async function executeReadOnlyCall(options, contractAddress, contractName, network, isZonefile = false) {
+    const networkType = network instanceof network_1.StacksMainnet ? "mainnet" : "testnet";
+    const fallbackUrl = (0, network_2.getFallbackUrl)(networkType);
+    debug_1.debug.log("executeReadOnlyCall initiated:", {
+        networkType,
+        contractAddress,
+        contractName,
+        functionName: options.functionName,
+        coreApiUrl: network.coreApiUrl,
+        fallbackUrl,
+        isZonefile,
+    });
     async function attemptCall(url) {
-        const currentNetwork = new network_1.StacksMainnet({ url });
+        const currentNetwork = networkType === "mainnet"
+            ? new network_1.StacksMainnet({ url })
+            : new network_1.StacksTestnet({ url });
         try {
-            return await (0, transactions_1.callReadOnlyFunction)({
+            const response = await (0, transactions_1.callReadOnlyFunction)({
                 contractAddress,
                 contractName,
                 functionName: options.functionName,
@@ -22,8 +32,13 @@ async function executeReadOnlyCall(options, contractAddress, contractName, netwo
                 senderAddress: options.senderAddress,
                 network: currentNetwork,
             });
+            if (response.error) {
+                throw new Error(response.error);
+            }
+            return response;
         }
         catch (error) {
+            debug_1.debug.error("Call failed:", { error: error.message, url, networkType });
             throw error;
         }
     }
@@ -34,72 +49,16 @@ async function executeReadOnlyCall(options, contractAddress, contractName, netwo
         if (fallbackUrl && fallbackUrl !== network.coreApiUrl) {
             return await attemptCall(fallbackUrl);
         }
-        else {
-            throw error;
-        }
+        throw error;
     }
 }
 async function bnsV2ReadOnlyCall(options) {
-    const network = (0, utils_1.getNetwork)(options.network);
+    const network = (0, network_2.getNetwork)(options.network);
     const contractAddress = (0, config_1.getBnsContractAddress)(options.network);
-    if (options.network === "mainnet" && network instanceof network_1.StacksMainnet) {
-        return executeReadOnlyCall(options, contractAddress, config_1.BnsContractName, network);
-    }
-    return (0, transactions_1.callReadOnlyFunction)({
-        contractAddress,
-        contractName: config_1.BnsContractName,
-        functionName: options.functionName,
-        functionArgs: options.functionArgs,
-        senderAddress: options.senderAddress,
-        network,
-    });
+    return executeReadOnlyCall(options, contractAddress, config_1.BnsContractName, network, false);
 }
 async function zonefileReadOnlyCall(options) {
-    const network = (0, utils_1.getNetwork)(options.network);
+    const network = (0, network_2.getNetwork)(options.network);
     const contractAddress = (0, config_1.getZonefileContractAddress)(options.network);
-    if (options.network === "mainnet" && network instanceof network_1.StacksMainnet) {
-        return executeReadOnlyCall(options, contractAddress, config_1.ZonefileContractName, network);
-    }
-    return (0, transactions_1.callReadOnlyFunction)({
-        contractAddress,
-        contractName: config_1.ZonefileContractName,
-        functionName: options.functionName,
-        functionArgs: options.functionArgs,
-        senderAddress: options.senderAddress,
-        network,
-    });
-}
-async function bnsV2ContractCall(options) {
-    const network = (0, utils_1.getNetwork)(options.network);
-    const txOptions = {
-        contractAddress: (0, config_1.getBnsContractAddress)(options.network),
-        contractName: config_1.BnsContractName,
-        functionName: options.functionName,
-        functionArgs: options.functionArgs,
-        address: options.address,
-        validateWithAbi: true,
-        network: network,
-        anchorMode: transactions_1.AnchorMode.Any,
-        postConditions: options.postConditions,
-        onFinish: options.onFinish,
-        onCancel: options.onCancel,
-    };
-    return (0, connect_1.openContractCall)(txOptions);
-}
-async function zonefileContractCall(options) {
-    const network = (0, utils_1.getNetwork)(options.network);
-    const txOptions = {
-        contractAddress: (0, config_1.getZonefileContractAddress)(options.network),
-        contractName: config_1.ZonefileContractName,
-        functionName: options.functionName,
-        functionArgs: options.functionArgs,
-        address: options.address,
-        validateWithAbi: true,
-        network,
-        anchorMode: transactions_1.AnchorMode.Any,
-        postConditions: options.postConditions,
-        onFinish: options.onFinish,
-        onCancel: options.onCancel,
-    };
-    return (0, connect_1.openContractCall)(txOptions);
+    return executeReadOnlyCall(options, contractAddress, config_1.ZonefileContractName, network, true);
 }

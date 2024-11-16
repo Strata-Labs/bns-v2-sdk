@@ -5,8 +5,7 @@ import {
   getAddressFromPrivateKey,
   privateKeyToString,
 } from "@stacks/transactions";
-import { CallbackFunction, NetworkType } from "./config";
-import { StacksTestnet, StacksMainnet } from "@stacks/network";
+import { CallbackFunction } from "./config";
 
 export function decodeFQN(fqdn: string): {
   name: string;
@@ -54,29 +53,6 @@ export function parsePriceFunction(data: {
     noVowelDiscount: (data["no-vowel-discount"] as UIntCV).value,
   };
 }
-
-export const defaultPriceFunction: PriceFunction = {
-  base: 1,
-  coefficient: 1,
-  b1: 1,
-  b2: 1,
-  b3: 1,
-  b4: 1,
-  b5: 1,
-  b6: 1,
-  b7: 1,
-  b8: 1,
-  b9: 1,
-  b10: 1,
-  b11: 1,
-  b12: 1,
-  b13: 1,
-  b14: 1,
-  b15: 1,
-  b16: 1,
-  nonAlphaDiscount: 1,
-  noVowelDiscount: 1,
-};
 
 export function asciiToUtf8(asciiCodes: string): string {
   return asciiCodes
@@ -136,19 +112,6 @@ export function createZonefileData(params: ZonefileData): ZonefileData {
     btc: params.btc || "",
     subdomains: params.subdomains || [],
   };
-}
-
-export function getNetwork(networkType: NetworkType) {
-  return networkType === "mainnet" ? new StacksMainnet() : new StacksTestnet();
-}
-
-export function getFallbackUrl(): string {
-  const fallbackUrl = process.env.NEXT_PUBLIC_BNS_FALLBACK_URL;
-  if (!fallbackUrl) {
-    return "";
-  }
-
-  return fallbackUrl;
 }
 
 export function addCallbacks<T>(

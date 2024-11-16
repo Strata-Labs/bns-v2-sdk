@@ -10,8 +10,6 @@ import {
   FungibleConditionCode,
   createNonFungiblePostCondition,
   NonFungibleConditionCode,
-  parseAssetInfoString,
-  tupleCV,
   bufferCVFromString,
   boolCV,
   contractPrincipalCV,
@@ -21,34 +19,14 @@ import {
   createAssetInfo,
 } from "@stacks/transactions";
 import {
-  createZonefileData,
-  decodeFQN,
-  defaultPriceFunction,
-  stringifyZonefile,
-} from "./utils";
-import { BnsContractName, getBnsContractAddress } from "./config";
-import {
-  BuyInUstxOptions,
-  ClaimPreorderOptions,
-  FreezeManagerOptions,
-  ImportNameOptions,
-  LaunchNamespaceOptions,
-  ListInUstxOptions,
-  NameFastClaimOptions,
-  NamespaceFreezePriceOptions,
-  NamespaceUpdatePriceOptions,
-  PreorderNameOptions,
-  PreorderNamespaceOptions,
-  RegisterNameOptions,
-  RenewNameOptions,
-  RevealNamespaceOptions,
-  SetPrimaryNameOptions,
-  TransferNameOptions,
-  TurnOffManagerTransfersOptions,
-  UnlistInUstxOptions,
-  UpdateZonefileOptions,
-} from "./interfaces";
-import { bnsV2ContractCall, zonefileContractCall } from "./callersHelper";
+  BnsContractName,
+  getBnsContractAddress,
+  ZonefileContractName,
+  getZonefileContractAddress,
+} from "./config";
+import { ContractCallPayload } from "./interfaces";
+import * as Types from "./interfaces";
+import { decodeFQN, createZonefileData, stringifyZonefile } from "./utils";
 import {
   getIdFromBns,
   getNamespaceProperties,
@@ -61,16 +39,14 @@ export async function buildTransferNameTx({
   newOwnerAddress,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: TransferNameOptions): Promise<void> {
+}: Types.TransferNameOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "transfer";
   const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+
   if (subdomain) {
     throw new Error("Cannot transfer a subdomain using transferName()");
   }
 
-  // Fetch the id from BNS
   const id = await getIdFromBns({
     fullyQualifiedName,
     network,
@@ -82,8 +58,10 @@ export async function buildTransferNameTx({
     standardPrincipalCV(newOwnerAddress),
   ];
 
-  const assetInfo = parseAssetInfoString(
-    `${getBnsContractAddress(network)}.${BnsContractName}::BNS-V2`
+  const assetInfo = createAssetInfo(
+    getBnsContractAddress(network),
+    BnsContractName,
+    "BNS-V2"
   );
 
   const postConditionSender = createNonFungiblePostCondition(
@@ -100,15 +78,14 @@ export async function buildTransferNameTx({
     uintCV(id)
   );
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs,
-    address: senderAddress,
-    network,
     postConditions: [postConditionSender, postConditionReceiver],
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
 
 export async function buildListInUstxTx({
@@ -118,42 +95,38 @@ export async function buildListInUstxTx({
   commissionTraitName,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: ListInUstxOptions): Promise<void> {
+}: Types.ListInUstxOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "list-in-ustx";
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [
       uintCV(id),
       uintCV(price),
       contractPrincipalCV(commissionTraitAddress, commissionTraitName),
     ],
-    address: senderAddress,
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
 
 export async function buildUnlistInUstxTx({
   id,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: UnlistInUstxOptions): Promise<void> {
+}: Types.UnlistInUstxOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "unlist-in-ustx";
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [uintCV(id)],
-    address: senderAddress,
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
 
 export async function buildBuyInUstxTx({
@@ -163,14 +136,14 @@ export async function buildBuyInUstxTx({
   commissionTraitName,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: BuyInUstxOptions): Promise<void> {
+}: Types.BuyInUstxOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "buy-in-ustx";
   const currentOwner = await getOwnerById({ id, network });
+
   if (!currentOwner) {
     throw new Error("Failed to fetch current owner of the name");
   }
+
   const postConditions = [
     makeStandardSTXPostCondition(
       senderAddress,
@@ -188,43 +161,46 @@ export async function buildBuyInUstxTx({
       uintCV(id)
     ),
   ];
-  return bnsV2ContractCall({
+
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [
       uintCV(id),
       contractPrincipalCV(commissionTraitAddress, commissionTraitName),
     ],
-    address: senderAddress,
-    network,
     postConditions,
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
 
 export async function buildSetPrimaryNameTx({
   fullyQualifiedName,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: SetPrimaryNameOptions): Promise<void> {
+}: Types.SetPrimaryNameOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "set-primary-name";
-  const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+  const { subdomain } = decodeFQN(fullyQualifiedName);
+
   if (subdomain) {
     throw new Error("Cannot set a subdomain as primary name");
   }
+
   const id = await getIdFromBns({
     fullyQualifiedName,
     network,
   });
+
   const currentOwner = await getOwner({
     fullyQualifiedName,
     network,
   });
+
   if (!currentOwner) {
     throw new Error("Failed to fetch current owner of the name");
   }
+
   const postConditions = [
     makeStandardNonFungiblePostCondition(
       currentOwner,
@@ -234,51 +210,51 @@ export async function buildSetPrimaryNameTx({
         BnsContractName,
         "BNS-V2"
       ),
-      tupleCV({
-        name: bufferCVFromString(name),
-        namespace: bufferCVFromString(namespace),
-      })
+      uintCV(id)
     ),
   ];
-  return bnsV2ContractCall({
+
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
-    functionArgs: [uintCV(Number(id))],
-    address: senderAddress,
-    network,
+    functionArgs: [uintCV(id)],
     postConditions,
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
+
 export async function buildFreezeManagerTx({
   namespace,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: FreezeManagerOptions): Promise<void> {
+}: Types.FreezeManagerOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "freeze-manager";
   const namespaceProperties = await getNamespaceProperties({
     namespace,
     network,
   });
+
   if (!namespaceProperties) {
     throw new Error("Failed to fetch namespace properties");
   }
+
   if (!namespaceProperties.properties["namespace-manager"]) {
     throw new Error("This namespace does not have a manager");
   }
+
   if (namespaceProperties.properties["manager-frozen"]) {
     throw new Error("Manager is already frozen for this namespace");
   }
-  return bnsV2ContractCall({
+
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [bufferCVFromString(namespace)],
-    address: senderAddress,
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
 
 export async function buildPreorderNamespaceTx({
@@ -287,33 +263,32 @@ export async function buildPreorderNamespaceTx({
   stxToBurn,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: PreorderNamespaceOptions): Promise<void> {
+}: Types.PreorderNamespaceOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "namespace-preorder";
   const saltedNamespaceBytes = utf8ToBytes(`${namespace}.${salt}`);
   const hashedSaltedNamespace = hash160(saltedNamespaceBytes);
+
   const burnSTXPostCondition = createSTXPostCondition(
     senderAddress,
     FungibleConditionCode.Equal,
     stxToBurn
   );
-  return bnsV2ContractCall({
+
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [bufferCV(hashedSaltedNamespace), uintCV(stxToBurn)],
-    address: senderAddress,
-    network,
     postConditions: [burnSTXPostCondition],
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
 
 export async function buildRevealNamespaceTx({
   namespace,
   salt,
-  priceFunction = defaultPriceFunction,
-  lifetime = 0,
+  priceFunction,
+  lifetime = 0n,
   namespaceImportAddress,
   namespaceManagerAddress,
   canUpdatePrice,
@@ -321,10 +296,9 @@ export async function buildRevealNamespaceTx({
   managerFrozen = true,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: RevealNamespaceOptions): Promise<void> {
+}: Types.RevealNamespaceOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "namespace-reveal";
+
   let managerAddressCV;
   if (namespaceManagerAddress) {
     if (namespaceManagerAddress.includes(".")) {
@@ -339,31 +313,36 @@ export async function buildRevealNamespaceTx({
   } else {
     managerAddressCV = noneCV();
   }
-  return bnsV2ContractCall({
+
+  const pf = priceFunction || defaultPriceFunction;
+
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [
       bufferCVFromString(namespace),
       bufferCVFromString(salt),
-      uintCV(priceFunction.base),
-      uintCV(priceFunction.coefficient),
-      uintCV(priceFunction.b1),
-      uintCV(priceFunction.b2),
-      uintCV(priceFunction.b3),
-      uintCV(priceFunction.b4),
-      uintCV(priceFunction.b5),
-      uintCV(priceFunction.b6),
-      uintCV(priceFunction.b7),
-      uintCV(priceFunction.b8),
-      uintCV(priceFunction.b9),
-      uintCV(priceFunction.b10),
-      uintCV(priceFunction.b11),
-      uintCV(priceFunction.b12),
-      uintCV(priceFunction.b13),
-      uintCV(priceFunction.b14),
-      uintCV(priceFunction.b15),
-      uintCV(priceFunction.b16),
-      uintCV(priceFunction.nonAlphaDiscount),
-      uintCV(priceFunction.noVowelDiscount),
+      uintCV(pf.base),
+      uintCV(pf.coefficient),
+      uintCV(pf.b1),
+      uintCV(pf.b2),
+      uintCV(pf.b3),
+      uintCV(pf.b4),
+      uintCV(pf.b5),
+      uintCV(pf.b6),
+      uintCV(pf.b7),
+      uintCV(pf.b8),
+      uintCV(pf.b9),
+      uintCV(pf.b10),
+      uintCV(pf.b11),
+      uintCV(pf.b12),
+      uintCV(pf.b13),
+      uintCV(pf.b14),
+      uintCV(pf.b15),
+      uintCV(pf.b16),
+      uintCV(pf.nonAlphaDiscount),
+      uintCV(pf.noVowelDiscount),
       uintCV(lifetime),
       standardPrincipalCV(namespaceImportAddress),
       managerAddressCV,
@@ -371,48 +350,43 @@ export async function buildRevealNamespaceTx({
       boolCV(managerTransfer),
       boolCV(managerFrozen),
     ],
-    address: senderAddress,
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
 
 export async function buildLaunchNamespaceTx({
   namespace,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: LaunchNamespaceOptions): Promise<void> {
+}: Types.LaunchNamespaceOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "namespace-launch";
-  return bnsV2ContractCall({
+
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [bufferCVFromString(namespace)],
-    address: senderAddress,
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
 
 export async function buildTurnOffManagerTransfersTx({
   namespace,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: TurnOffManagerTransfersOptions): Promise<void> {
+}: Types.TurnOffManagerTransfersOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "turn-off-manager-transfers";
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [bufferCVFromString(namespace)],
-    address: senderAddress,
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
 
 export async function buildImportNameTx({
@@ -421,23 +395,21 @@ export async function buildImportNameTx({
   beneficiary,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: ImportNameOptions): Promise<void> {
+}: Types.ImportNameOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "name-import";
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [
       bufferCVFromString(namespace),
       bufferCVFromString(name),
       standardPrincipalCV(beneficiary),
     ],
-    address: senderAddress,
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
 
 export async function buildNamespaceUpdatePriceTx({
@@ -445,12 +417,12 @@ export async function buildNamespaceUpdatePriceTx({
   priceFunction,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: NamespaceUpdatePriceOptions): Promise<void> {
+}: Types.NamespaceUpdatePriceOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "namespace-update-price";
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [
       bufferCVFromString(namespace),
@@ -475,30 +447,26 @@ export async function buildNamespaceUpdatePriceTx({
       uintCV(priceFunction.nonAlphaDiscount),
       uintCV(priceFunction.noVowelDiscount),
     ],
-    address: senderAddress,
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
 
 export async function buildNamespaceFreezePriceTx({
   namespace,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: NamespaceFreezePriceOptions): Promise<void> {
+}: Types.NamespaceFreezePriceOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "namespace-freeze-price";
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [bufferCVFromString(namespace)],
-    address: senderAddress,
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
 
 export async function buildNameClaimFastTx({
@@ -507,9 +475,7 @@ export async function buildNameClaimFastTx({
   sendTo,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: NameFastClaimOptions): Promise<void> {
+}: Types.NameFastClaimOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "name-claim-fast";
   const { namespace, name, subdomain } = decodeFQN(fullyQualifiedName);
 
@@ -531,19 +497,18 @@ export async function buildNameClaimFastTx({
     postConditions.push(burnSTXPostCondition);
   }
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [
       bufferCV(Buffer.from(name)),
       bufferCV(Buffer.from(namespace)),
       principalCV,
     ],
-    network,
-    address: senderAddress,
     postConditions,
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
 
 export async function buildPreorderNameTx({
@@ -552,14 +517,14 @@ export async function buildPreorderNameTx({
   stxToBurn,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: PreorderNameOptions): Promise<void> {
+}: Types.PreorderNameOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "name-preorder";
   const { subdomain } = decodeFQN(fullyQualifiedName);
+
   if (subdomain) {
     throw new Error("Cannot preorder a subdomain using preorderName()");
   }
+
   const saltedNamesBytes = Buffer.from(`${fullyQualifiedName}${salt}`);
   const hashedSaltedName = hash160(saltedNamesBytes);
 
@@ -573,15 +538,14 @@ export async function buildPreorderNameTx({
     postConditions.push(burnSTXPostCondition);
   }
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [bufferCV(hashedSaltedName), uintCV(stxToBurn)],
-    address: senderAddress,
-    network,
     postConditions,
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
 
 export async function buildRegisterNameTx({
@@ -590,11 +554,10 @@ export async function buildRegisterNameTx({
   stxToBurn,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: RegisterNameOptions): Promise<void> {
+}: Types.RegisterNameOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "name-register";
   const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+
   if (subdomain) {
     throw new Error("Cannot register a subdomain using registerName()");
   }
@@ -610,19 +573,18 @@ export async function buildRegisterNameTx({
     postConditions.push(burnSTXPostCondition);
   }
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [
       bufferCV(Buffer.from(namespace)),
       bufferCV(Buffer.from(name)),
       bufferCV(Buffer.from(salt)),
     ],
-    network,
     postConditions,
-    address: senderAddress,
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
 
 export async function buildPreviousRegisterNameTx({
@@ -631,11 +593,10 @@ export async function buildPreviousRegisterNameTx({
   stxToBurn,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: RegisterNameOptions): Promise<void> {
+}: Types.RegisterNameOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "name-register";
   const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+
   if (subdomain) {
     throw new Error("Cannot register a subdomain using registerName()");
   }
@@ -654,6 +615,7 @@ export async function buildPreviousRegisterNameTx({
   }
 
   let postConditions = [];
+
   if (stxToBurn > 0) {
     const burnSTXPostCondition = makeContractSTXPostCondition(
       getBnsContractAddress(network),
@@ -672,19 +634,18 @@ export async function buildPreviousRegisterNameTx({
   );
   postConditions.push(transferNFTPostCondition);
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [
       bufferCV(Buffer.from(namespace)),
       bufferCV(Buffer.from(name)),
       bufferCV(Buffer.from(salt)),
     ],
-    network,
     postConditions,
-    address: senderAddress,
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
 
 export async function buildClaimPreorderTx({
@@ -693,14 +654,14 @@ export async function buildClaimPreorderTx({
   stxToClaim,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: ClaimPreorderOptions): Promise<void> {
+}: Types.ClaimPreorderOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "claim-preorder";
   const { subdomain } = decodeFQN(fullyQualifiedName);
+
   if (subdomain) {
     throw new Error("Cannot claim a subdomain using claim-preorder()");
   }
+
   const saltedNamesBytes = utf8ToBytes(`${fullyQualifiedName}${salt}`);
   const hashedSaltedName = hash160(saltedNamesBytes);
 
@@ -711,15 +672,14 @@ export async function buildClaimPreorderTx({
     stxToClaim
   );
 
-  return bnsV2ContractCall({
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [bufferCV(hashedSaltedName)],
-    address: senderAddress,
-    network,
     postConditions: [returnSTXPostCondition],
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
 
 export async function buildRenewNameTx({
@@ -727,32 +687,28 @@ export async function buildRenewNameTx({
   stxToBurn,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: RenewNameOptions): Promise<void> {
+}: Types.RenewNameOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "name-renewal";
   const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+
   if (subdomain) {
     throw new Error("Cannot renew a subdomain using renewName()");
   }
-  const functionArgs = [
-    bufferCVFromString(namespace),
-    bufferCVFromString(name),
-  ];
+
   const burnSTXPostCondition = createSTXPostCondition(
     senderAddress,
     FungibleConditionCode.Equal,
     stxToBurn
   );
-  return bnsV2ContractCall({
+
+  return {
+    contractAddress: getBnsContractAddress(network),
+    contractName: BnsContractName,
     functionName: bnsFunctionName,
-    functionArgs,
-    address: senderAddress,
-    network,
+    functionArgs: [bufferCVFromString(namespace), bufferCVFromString(name)],
     postConditions: [burnSTXPostCondition],
-    onFinish,
-    onCancel,
-  });
+    network,
+  };
 }
 
 export async function buildUpdateZonefileTx({
@@ -760,10 +716,8 @@ export async function buildUpdateZonefileTx({
   zonefileInputs,
   senderAddress,
   network,
-  onFinish,
-  onCancel,
-}: UpdateZonefileOptions): Promise<void> {
-  const zonefileFunctionName = "update-zonefile";
+}: Types.UpdateZonefileOptions): Promise<ContractCallPayload> {
+  const bnsFunctionName = "update-zonefile";
   const { name, namespace } = decodeFQN(fullyQualifiedName);
 
   let zonefileCV;
@@ -775,18 +729,40 @@ export async function buildUpdateZonefileTx({
     zonefileCV = noneCV();
   }
 
-  const functionArgs = [
-    bufferCVFromString(name),
-    bufferCVFromString(namespace),
-    zonefileCV,
-  ];
-
-  return zonefileContractCall({
-    functionName: zonefileFunctionName,
-    functionArgs,
-    address: senderAddress,
+  return {
+    contractAddress: getZonefileContractAddress(network),
+    contractName: ZonefileContractName,
+    functionName: bnsFunctionName,
+    functionArgs: [
+      bufferCVFromString(name),
+      bufferCVFromString(namespace),
+      zonefileCV,
+    ],
+    postConditions: [],
     network,
-    onFinish,
-    onCancel,
-  });
+  };
 }
+
+// Import defaultPriceFunction from the existing code
+const defaultPriceFunction: Types.PriceFunction = {
+  base: 1n,
+  coefficient: 1n,
+  b1: 1n,
+  b2: 1n,
+  b3: 1n,
+  b4: 1n,
+  b5: 1n,
+  b6: 1n,
+  b7: 1n,
+  b8: 1n,
+  b9: 1n,
+  b10: 1n,
+  b11: 1n,
+  b12: 1n,
+  b13: 1n,
+  b14: 1n,
+  b15: 1n,
+  b16: 1n,
+  nonAlphaDiscount: 1n,
+  noVowelDiscount: 1n,
+};

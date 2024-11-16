@@ -1,6 +1,3 @@
-import dotenv from "dotenv";
-dotenv.config();
-
 // Read-only functions
 export {
   canRegisterName,
@@ -16,7 +13,6 @@ export {
   getNameInfo,
   getBnsFromId,
   getPrimaryName,
-  resolveName,
   fetchUserOwnedNames,
   resolveNameZonefile,
 } from "./readOnlyCalls";
@@ -48,8 +44,6 @@ export {
 // Types
 export type {
   PriceFunction,
-  BnsContractCallOptions,
-  BnsContractCallOptionsExecution,
   BnsReadOnlyOptions,
   CanRegisterNameOptions,
   GetLastTokenIdOptions,
@@ -89,3 +83,5 @@ export type {
   Subdomain,
   ZonefileData,
 } from "./interfaces";
+
+export { debug } from "./debug";

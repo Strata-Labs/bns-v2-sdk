@@ -1,6 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.defaultPriceFunction = void 0;
 exports.decodeFQN = decodeFQN;
 exports.parsePriceFunction = parsePriceFunction;
 exports.asciiToUtf8 = asciiToUtf8;
@@ -8,11 +7,8 @@ exports.generateRandomAddress = generateRandomAddress;
 exports.parseZonefile = parseZonefile;
 exports.stringifyZonefile = stringifyZonefile;
 exports.createZonefileData = createZonefileData;
-exports.getNetwork = getNetwork;
-exports.getFallbackUrl = getFallbackUrl;
 exports.addCallbacks = addCallbacks;
 const transactions_1 = require("@stacks/transactions");
-const network_1 = require("@stacks/network");
 function decodeFQN(fqdn) {
     const nameParts = fqdn.split(".");
     if (nameParts.length > 2) {
@@ -52,28 +48,6 @@ function parsePriceFunction(data) {
         noVowelDiscount: data["no-vowel-discount"].value,
     };
 }
-exports.defaultPriceFunction = {
-    base: 1,
-    coefficient: 1,
-    b1: 1,
-    b2: 1,
-    b3: 1,
-    b4: 1,
-    b5: 1,
-    b6: 1,
-    b7: 1,
-    b8: 1,
-    b9: 1,
-    b10: 1,
-    b11: 1,
-    b12: 1,
-    b13: 1,
-    b14: 1,
-    b15: 1,
-    b16: 1,
-    nonAlphaDiscount: 1,
-    noVowelDiscount: 1,
-};
 function asciiToUtf8(asciiCodes) {
     return asciiCodes
         .split(",")
@@ -128,16 +102,6 @@ function createZonefileData(params) {
         btc: params.btc || "",
         subdomains: params.subdomains || [],
     };
-}
-function getNetwork(networkType) {
-    return networkType === "mainnet" ? new network_1.StacksMainnet() : new network_1.StacksTestnet();
-}
-function getFallbackUrl() {
-    const fallbackUrl = process.env.NEXT_PUBLIC_BNS_FALLBACK_URL;
-    if (!fallbackUrl) {
-        return "";
-    }
-    return fallbackUrl;
 }
 function addCallbacks(options, onFinish, onCancel) {
     return { ...options, onFinish, onCancel };

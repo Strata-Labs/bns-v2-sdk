@@ -1,11 +1,6 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildUpdateZonefileTx = exports.buildRenewNameTx = exports.buildClaimPreorderTx = exports.buildPreviousRegisterNameTx = exports.buildRegisterNameTx = exports.buildPreorderNameTx = exports.buildNameClaimFastTx = exports.buildNamespaceFreezePriceTx = exports.buildNamespaceUpdatePriceTx = exports.buildImportNameTx = exports.buildTurnOffManagerTransfersTx = exports.buildLaunchNamespaceTx = exports.buildRevealNamespaceTx = exports.buildPreorderNamespaceTx = exports.buildFreezeManagerTx = exports.buildSetPrimaryNameTx = exports.buildBuyInUstxTx = exports.buildUnlistInUstxTx = exports.buildListInUstxTx = exports.buildTransferNameTx = exports.resolveNameZonefile = exports.fetchUserOwnedNames = exports.resolveName = exports.getPrimaryName = exports.getBnsFromId = exports.getNameInfo = exports.getNamespaceProperties = exports.canNamespaceBeRegistered = exports.getNamePrice = exports.getNamespacePrice = exports.getOwnerById = exports.getOwner = exports.canResolveName = exports.getRenewalHeight = exports.getLastTokenId = exports.canRegisterName = void 0;
-const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config();
+exports.debug = exports.buildUpdateZonefileTx = exports.buildRenewNameTx = exports.buildClaimPreorderTx = exports.buildPreviousRegisterNameTx = exports.buildRegisterNameTx = exports.buildPreorderNameTx = exports.buildNameClaimFastTx = exports.buildNamespaceFreezePriceTx = exports.buildNamespaceUpdatePriceTx = exports.buildImportNameTx = exports.buildTurnOffManagerTransfersTx = exports.buildLaunchNamespaceTx = exports.buildRevealNamespaceTx = exports.buildPreorderNamespaceTx = exports.buildFreezeManagerTx = exports.buildSetPrimaryNameTx = exports.buildBuyInUstxTx = exports.buildUnlistInUstxTx = exports.buildListInUstxTx = exports.buildTransferNameTx = exports.resolveNameZonefile = exports.fetchUserOwnedNames = exports.getPrimaryName = exports.getBnsFromId = exports.getNameInfo = exports.getNamespaceProperties = exports.canNamespaceBeRegistered = exports.getNamePrice = exports.getNamespacePrice = exports.getOwnerById = exports.getOwner = exports.canResolveName = exports.getRenewalHeight = exports.getLastTokenId = exports.canRegisterName = void 0;
 // Read-only functions
 var readOnlyCalls_1 = require("./readOnlyCalls");
 Object.defineProperty(exports, "canRegisterName", { enumerable: true, get: function () { return readOnlyCalls_1.canRegisterName; } });
@@ -21,7 +16,6 @@ Object.defineProperty(exports, "getNamespaceProperties", { enumerable: true, get
 Object.defineProperty(exports, "getNameInfo", { enumerable: true, get: function () { return readOnlyCalls_1.getNameInfo; } });
 Object.defineProperty(exports, "getBnsFromId", { enumerable: true, get: function () { return readOnlyCalls_1.getBnsFromId; } });
 Object.defineProperty(exports, "getPrimaryName", { enumerable: true, get: function () { return readOnlyCalls_1.getPrimaryName; } });
-Object.defineProperty(exports, "resolveName", { enumerable: true, get: function () { return readOnlyCalls_1.resolveName; } });
 Object.defineProperty(exports, "fetchUserOwnedNames", { enumerable: true, get: function () { return readOnlyCalls_1.fetchUserOwnedNames; } });
 Object.defineProperty(exports, "resolveNameZonefile", { enumerable: true, get: function () { return readOnlyCalls_1.resolveNameZonefile; } });
 // Contract interaction functions
@@ -46,3 +40,5 @@ Object.defineProperty(exports, "buildPreviousRegisterNameTx", { enumerable: true
 Object.defineProperty(exports, "buildClaimPreorderTx", { enumerable: true, get: function () { return contractCalls_1.buildClaimPreorderTx; } });
 Object.defineProperty(exports, "buildRenewNameTx", { enumerable: true, get: function () { return contractCalls_1.buildRenewNameTx; } });
 Object.defineProperty(exports, "buildUpdateZonefileTx", { enumerable: true, get: function () { return contractCalls_1.buildUpdateZonefileTx; } });
+var debug_1 = require("./debug");
+Object.defineProperty(exports, "debug", { enumerable: true, get: function () { return debug_1.debug; } });
