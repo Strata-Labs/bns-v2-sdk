@@ -1,6 +1,6 @@
 {
   "name": "bns-v2-sdk",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "The official BNS V2 SDK for interacting with Stacks Blockchain",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

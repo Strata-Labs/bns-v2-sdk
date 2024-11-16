@@ -1,299 +1,453 @@
 # BNS V2 SDK
 
-The official BNS V2 SDK for interacting with Stacks Blockchain.
+The official BNS V2 SDK for interacting with the Stacks Blockchain. This SDK provides a comprehensive set of tools for managing Bitcoin Name System (BNS) operations.
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Setup](#setup)
-- [Environment Configuration](#environment-configuration)
-- [Functions](#functions)
-  - [Read-only Functions](#read-only-functions)
-  - [Contract-calls](#contract-calls)
-- [Usage Examples](#usage-examples)
+1. [Installation](#installation)
+2. [Important Note About Transactions](#important-note-about-transactions)
+3. [Features](#features)
+4. [Read-Only Functions](#read-only-functions)
+5. [Contract Calls](#contract-calls)
+6. [Network Configuration](#network-configuration)
+7. [Error Handling](#error-handling)
+8. [Support](#support)
+9. [License](#license)
 
 ## Installation
-
-Install the SDK using npm:
 
 ```bash
 npm install bns-v2-sdk
 ```
 
-## Setup
+## Important Note About Transactions
 
-Import the necessary functions in your JavaScript/TypeScript file:
+**This SDK only builds transaction payloads.** It does not:
 
-```javascript
-import { 
-  canRegisterName, 
+- Sign transactions
+- Broadcast transactions to the network
+- Handle transaction lifecycle
+- Manage wallet connections
+
+To complete transactions, you'll need to:
+
+1. Build the payload using this SDK
+2. Sign the transaction using a wallet or the Stacks.js library
+3. Broadcast the transaction to the network
+4. Monitor the transaction status
+
+## Features
+
+- Complete TypeScript support
+- Comprehensive API for BNS operations
+- Supports both mainnet and testnet
+- Built-in error handling and validation
+- Automatic fallback mechanisms
+- Extensive read-only functions
+
+## Read-Only Functions
+
+### Name Operations
+
+```typescript
+import {
+  canRegisterName,
+  getNameInfo,
+  getOwner,
+  getOwnerById,
+  getRenewalHeight,
+  canResolveName,
+  getNamePrice,
   getLastTokenId,
-  // ... other functions you need
-} from 'bns-v2-sdk';
+  getBnsFromId,
+  getIdFromBns,
+  getPrimaryName,
+  fetchUserOwnedNames,
+  resolveNameZonefile,
+} from "bns-v2-sdk";
+
+// Check name availability
+const available = await canRegisterName({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
+
+// Get full name information
+const nameInfo = await getNameInfo({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
+
+// Get name owner
+const owner = await getOwner({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
+
+// Get owner by NFT ID
+const ownerById = await getOwnerById({
+  id: 123,
+  network: "mainnet",
+});
+
+// Get name renewal height
+const renewalHeight = await getRenewalHeight({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
+
+// Check if name can resolve
+const resolvable = await canResolveName({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
+
+// Get name price
+const price = await getNamePrice({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
+
+// Get last token ID
+const lastId = await getLastTokenId({
+  network: "mainnet",
+});
+
+// Get BNS information from token ID
+const nameInfo = await getBnsFromId({
+  id: 123n,
+  network: "mainnet",
+});
+
+// Get token ID from BNS name
+const id = await getIdFromBns({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
+
+// Get primary name for address
+const primaryName = await getPrimaryName({
+  address: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Get all names owned by address
+const ownedNames = await fetchUserOwnedNames({
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Get zonefile data (only for mainnet unless you have your own testnet node)
+const zonefile = await resolveNameZonefile({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
 ```
 
-## Environment Configuration
+### Namespace Operations
 
-Create a `.env` file in your project root and add the following variable:
+```typescript
+import {
+  canNamespaceBeRegistered,
+  getNamespaceProperties,
+  getNamespacePrice,
+} from "bns-v2-sdk";
 
+// Check namespace availability
+const available = await canNamespaceBeRegistered({
+  namespace: "example",
+  network: "mainnet",
+});
+
+// Get namespace properties
+const properties = await getNamespaceProperties({
+  namespace: "btc",
+  network: "mainnet",
+});
+
+// Get namespace price
+const price = await getNamespacePrice({
+  namespace: "example",
+  network: "mainnet",
+});
 ```
-NEXT_PUBLIC_BNS_FALLBACK_URL=https://your-fallback-url.com
+
+## Contract Calls
+
+### Name Registration and Management
+
+```typescript
+import {
+  buildNameClaimFastTx,
+  buildPreorderNameTx,
+  buildRegisterNameTx,
+  buildRenewNameTx,
+  buildTransferNameTx,
+  buildSetPrimaryNameTx,
+  buildUpdateZonefileTx,
+} from "bns-v2-sdk";
+
+// Fast claim a name (warning: snipeable)
+const fastClaimPayload = await buildNameClaimFastTx({
+  fullyQualifiedName: "myname.btc",
+  stxToBurn: 1000000n,
+  sendTo: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Safe two-step registration
+const preorderPayload = await buildPreorderNameTx({
+  fullyQualifiedName: "myname.btc",
+  salt: "random-salt-string",
+  stxToBurn: 1000000n,
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+const registerPayload = await buildRegisterNameTx({
+  fullyQualifiedName: "myname.btc",
+  salt: "random-salt-string",
+  stxToBurn: 1000000n,
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Renew name
+const renewPayload = await buildRenewNameTx({
+  fullyQualifiedName: "myname.btc",
+  stxToBurn: 1000000n,
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Transfer name
+const transferPayload = await buildTransferNameTx({
+  fullyQualifiedName: "myname.btc",
+  newOwnerAddress: "SP1HTBVD3JG9C05J7HBJTHGR0GGW7KXW28M5JS8QE",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Set primary name
+const setPrimaryPayload = await buildSetPrimaryNameTx({
+  fullyQualifiedName: "myname.btc",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Update zonefile
+const updateZonefilePayload = await buildUpdateZonefileTx({
+  fullyQualifiedName: "myname.btc",
+  zonefileInputs: {
+    owner: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+    general: "",
+    twitter: "@example",
+    url: "https://example.com",
+    nostr: "",
+    lightning: "",
+    btc: "",
+    subdomains: [],
+  },
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 ```
 
-This fallback URL is used when the primary Stacks API is unavailable. Replace `https://your-fallback-url.com` with an actual fallback URL.
-## Functions
+### Marketplace Operations
 
-### Read-only Functions
+```typescript
+import {
+  buildListInUstxTx,
+  buildUnlistInUstxTx,
+  buildBuyInUstxTx,
+} from "bns-v2-sdk";
 
-1. **canRegisterName**
-   ```typescript
-   async function canRegisterName(options: CanRegisterNameOptions): Promise<boolean>
-   ```
-   Checks if a name can be registered.
+// List name for sale
+const listPayload = await buildListInUstxTx({
+  id: 123n,
+  price: 1000000n,
+  commissionTraitAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  commissionTraitName: "commission-trait",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 
-2. **getLastTokenId**
-   ```typescript
-   async function getLastTokenId(options: GetLastTokenIdOptions): Promise<bigint>
-   ```
-   Retrieves the ID of the last minted BNS token.
+// Unlist name
+const unlistPayload = await buildUnlistInUstxTx({
+  id: 123n,
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 
-3. **getRenewalHeight**
-   ```typescript
-   async function getRenewalHeight(options: GetRenewalHeightOptions): Promise<bigint>
-   ```
-   Gets the block height at which a name needs to be renewed.
+// Buy listed name
+const buyPayload = await buildBuyInUstxTx({
+  id: 123,
+  expectedPrice: 1000000n,
+  commissionTraitAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  commissionTraitName: "commission-trait",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+```
 
-4. **canResolveName**
-   ```typescript
-   async function canResolveName(options: CanResolveNameOptions): Promise<{ renewal: bigint; owner: string }>
-   ```
-   Checks if a name can be resolved and returns its renewal height and owner.
+### Namespace Management
 
-5. **getOwner**
-   ```typescript
-   async function getOwner(options: GetOwnerOptions): Promise<string | null>
-   ```
-   Retrieves the owner of a name.
+```typescript
+import {
+  buildPreorderNamespaceTx,
+  buildRevealNamespaceTx,
+  buildLaunchNamespaceTx,
+  buildNamespaceUpdatePriceTx,
+  buildNamespaceFreezePriceTx,
+  buildTurnOffManagerTransfersTx,
+  buildFreezeManagerTx,
+  buildImportNameTx,
+} from "bns-v2-sdk";
 
-6. **getOwnerById**
-   ```typescript
-   async function getOwnerById(options: GetOwnerByIdOptions): Promise<string | null>
-   ```
-   Retrieves the owner of a name by its ID.
+// Preorder namespace
+const preorderNamespacePayload = await buildPreorderNamespaceTx({
+  namespace: "example",
+  salt: "random-salt-string",
+  stxToBurn: 1000000n,
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 
-7. **getNamespacePrice**
-   ```typescript
-   async function getNamespacePrice(options: GetNamespacePriceOptions): Promise<bigint>
-   ```
-   Gets the price to register a namespace.
+// Reveal namespace
+const revealNamespacePayload = await buildRevealNamespaceTx({
+  namespace: "example",
+  salt: "random-salt-string",
+  priceFunction: {
+    base: 1000n,
+    coefficient: 100n,
+    b1: 1n,
+    b2: 1n,
+    b3: 1n,
+    b4: 1n,
+    b5: 1n,
+    b6: 1n,
+    b7: 1n,
+    b8: 1n,
+    b9: 1n,
+    b10: 1n,
+    b11: 1n,
+    b12: 1n,
+    b13: 1n,
+    b14: 1n,
+    b15: 1n,
+    b16: 1n,
+    nonAlphaDiscount: 10n,
+    noVowelDiscount: 10n,
+  },
+  lifetime: 52595n,
+  namespaceImportAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  namespaceManagerAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  canUpdatePrice: true,
+  managerTransfer: true,
+  managerFrozen: false,
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 
-8. **getNamePrice**
-   ```typescript
-   async function getNamePrice(options: GetNamePriceOptions): Promise<bigint>
-   ```
-   Gets the price to register a name.
+// Launch namespace
+const launchNamespacePayload = await buildLaunchNamespaceTx({
+  namespace: "example",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 
-9. **canNamespaceBeRegistered**
-   ```typescript
-   async function canNamespaceBeRegistered(options: CanNamespaceBeRegisteredOptions): Promise<boolean>
-   ```
-   Checks if a namespace can be registered.
+// Update namespace price function
+const updatePricePayload = await buildNamespaceUpdatePriceTx({
+  namespace: "example",
+  priceFunction: {
+    base: 1000n,
+    coefficient: 100n,
+    b1: 1n,
+    b2: 1n,
+    b3: 1n,
+    b4: 1n,
+    b5: 1n,
+    b6: 1n,
+    b7: 1n,
+    b8: 1n,
+    b9: 1n,
+    b10: 1n,
+    b11: 1n,
+    b12: 1n,
+    b13: 1n,
+    b14: 1n,
+    b15: 1n,
+    b16: 1n,
+    nonAlphaDiscount: 1n,
+    noVowelDiscount: 1n,
+  },
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 
-10. **getNamespaceProperties**
-    ```typescript
-    async function getNamespaceProperties(options: GetNamespacePropertiesOptions): Promise<NamespaceProperties>
-    ```
-    Retrieves the properties of a namespace.
+// Freeze namespace price function
+const freezePricePayload = await buildNamespaceFreezePriceTx({
+  namespace: "example",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 
-11. **getNameInfo**
-    ```typescript
-    async function getNameInfo(options: CanRegisterNameOptions): Promise<NameInfo>
-    ```
-    Retrieves information about a name.
+// Turn off manager transfers
+const turnOffManagerPayload = await buildTurnOffManagerTransfersTx({
+  namespace: "example",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 
-12. **getIdFromBns**
-    ```typescript
-    async function getIdFromBns(options: GetIdFromBnsOptions): Promise<bigint>
-    ```
-    Gets the ID of a BNS name.
+// Freeze manager
+const freezeManagerPayload = await buildFreezeManagerTx({
+  namespace: "example",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
 
-13. **getBnsFromId**
-    ```typescript
-    async function getBnsFromId(options: GetBnsFromIdOptions): Promise<{ name: string; namespace: string } | null>
-    ```
-    Retrieves the name and namespace for a given BNS ID.
+// Import name
+const importNamePayload = await buildImportNameTx({
+  namespace: "example",
+  name: "myname",
+  beneficiary: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+```
 
-14. **getPrimaryName**
-    ```typescript
-    async function getPrimaryName(options: GetPrimaryNameOptions): Promise<{ name: string; namespace: string } | null>
-    ```
-    Gets the primary name for an address.
+## Network Configuration
 
-15. **fetchUserOwnedNames**
-    ```typescript
-    async function fetchUserOwnedNames(options: FetchUserOwnedNamesOptions): Promise<Array<{ name: string; namespace: string }>>
-    ```
-    Retrieves all names owned by a user.
+```typescript
+import { configureNetwork } from "bns-v2-sdk";
 
-16. **resolveNameZonefile**
-    ```typescript
-    async function resolveNameZonefile(options: ResolveNameOptions): Promise<ZonefileData | null>
-    ```
-    Resolves a BNS name to its parsed zonefile data.
+configureNetwork({
+  testnetFallbackUrl: "https://your-testnet-node.com",
+});
+```
 
-### Contract Calls
+## Error Handling
 
-1. **buildTransferNameTx**
-   ```typescript
-   async function buildTransferNameTx(options: TransferNameOptions): Promise<void>
-   ```
-   Builds a transaction to transfer a name to a new owner.
+```typescript
+try {
+  const nameInfo = await getNameInfo({
+    fullyQualifiedName: "example.btc",
+    network: "mainnet",
+  });
+} catch (error) {
+  if (error.message === "Name not found") {
+    // Handle non-existent name
+  } else {
+    // Handle other errors
+  }
+}
+```
 
-2. **buildListInUstxTx**
-   ```typescript
-   async function buildListInUstxTx(options: ListInUstxOptions): Promise<void>
-   ```
-   Builds a transaction to list a name for sale.
+## Support
 
-3. **buildUnlistInUstxTx**
-   ```typescript
-   async function buildUnlistInUstxTx(options: UnlistInUstxOptions): Promise<void>
-   ```
-   Builds a transaction to unlist a name from sale.
+For issues and feature requests, please use the [GitHub issues page](https://github.com/Strata-Labs/bns-v2-sdk/issues).
 
-4. **buildBuyInUstxTx**
-   ```typescript
-   async function buildBuyInUstxTx(options: BuyInUstxOptions): Promise<void>
-   ```
-   Builds a transaction to buy a listed name.
+## License
 
-5. **buildSetPrimaryNameTx**
-   ```typescript
-   async function buildSetPrimaryNameTx(options: SetPrimaryNameOptions): Promise<void>
-   ```
-   Builds a transaction to set a name as the primary name for an address.
-
-6. **buildFreezeManagerTx**
-   ```typescript
-   async function buildFreezeManagerTx(options: FreezeManagerOptions): Promise<void>
-   ```
-   Builds a transaction to freeze the namespace manager.
-
-7. **buildPreorderNamespaceTx**
-   ```typescript
-   async function buildPreorderNamespaceTx(options: PreorderNamespaceOptions): Promise<void>
-   ```
-   Builds a transaction to preorder a namespace.
-
-8. **buildRevealNamespaceTx**
-   ```typescript
-   async function buildRevealNamespaceTx(options: RevealNamespaceOptions): Promise<void>
-   ```
-   Builds a transaction to reveal a preordered namespace.
-
-9. **buildLaunchNamespaceTx**
-   ```typescript
-   async function buildLaunchNamespaceTx(options: LaunchNamespaceOptions): Promise<void>
-   ```
-   Builds a transaction to launch a namespace.
-
-10. **buildTurnOffManagerTransfersTx**
-    ```typescript
-    async function buildTurnOffManagerTransfersTx(options: TurnOffManagerTransfersOptions): Promise<void>
-    ```
-    Builds a transaction to turn off manager transfers for a namespace.
-
-11. **buildImportNameTx**
-    ```typescript
-    async function buildImportNameTx(options: ImportNameOptions): Promise<void>
-    ```
-    Builds a transaction to import a name into a namespace.
-
-12. **buildNamespaceUpdatePriceTx**
-    ```typescript
-    async function buildNamespaceUpdatePriceTx(options: NamespaceUpdatePriceOptions): Promise<void>
-    ```
-    Builds a transaction to update the price function for a namespace.
-
-13. **buildNamespaceFreezePriceTx**
-    ```typescript
-    async function buildNamespaceFreezePriceTx(options: NamespaceFreezePriceOptions): Promise<void>
-    ```
-    Builds a transaction to freeze the price function for a namespace.
-
-14. **buildNameClaimFastTx**
-    ```typescript
-    async function buildNameClaimFastTx(options: NameFastClaimOptions): Promise<void>
-    ```
-    Builds a transaction to quickly claim a name in a namespace.
-
-15. **buildPreorderNameTx**
-    ```typescript
-    async function buildPreorderNameTx(options: PreorderNameOptions): Promise<void>
-    ```
-    Builds a transaction to preorder a name.
-
-16. **buildRegisterNameTx**
-    ```typescript
-    async function buildRegisterNameTx(options: RegisterNameOptions): Promise<void>
-    ```
-    Builds a transaction to register a preordered name.
-
-17. **buildPreviousRegisterNameTx**
-    ```typescript
-    async function buildPreviousRegisterNameTx(options: RegisterNameOptions): Promise<void>
-    ```
-    Builds a transaction to try and register a name that was previously registered.
-
-18. **buildClaimPreorderTx**
-    ```typescript
-    async function buildClaimPreorderTx(options: ClaimPreorderOptions): Promise<void>
-    ```
-    Builds a transaction to claim STX from a preorder that didn't result in a successful registration.
-
-19. **buildRenewNameTx**
-    ```typescript
-    async function buildRenewNameTx(options: RenewNameOptions): Promise<void>
-    ```
-    Builds a transaction to renew a name.
-
-20. **buildUpdateZonefileTx**
-    ```typescript
-    async function buildUpdateZonefileTx(options: UpdateZonefileOptions): Promise<void>
-    ```
-    Builds a transaction to update the zonefile for a name.
-
-## Usage Examples
-
-Here are a few examples of how to use some of the functions:
-
-1. Check if a name can be registered:
-   ```javascript
-   const canRegister = await canRegisterName({
-     fullyQualifiedName: "myname.btc",
-     network: "mainnet"
-   });
-   console.log(canRegister ? "Name is available" : "Name is taken");
-   ```
-
-2. Get the price of a name:
-   ```javascript
-   const price = await getNamePrice({
-     fullyQualifiedName: "myname.btc",
-     network: "mainnet"
-   });
-   console.log(`The price to register this name is ${price} microSTX`);
-   ```
-
-3. Build a transaction to register a name:
-   ```javascript
-   await buildRegisterNameTx({
-     fullyQualifiedName: "myname.btc",
-     salt: "randomsalt123",
-     stxToBurn: 1000000n, // 1 STX
-     senderAddress: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
-     network: "mainnet",
-     onFinish: (data) => console.log("Transaction sent:", data),
-     onCancel: () => console.log("Transaction cancelled")
-   });
-   ```
+MIT License
