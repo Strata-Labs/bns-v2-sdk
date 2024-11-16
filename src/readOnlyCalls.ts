@@ -652,7 +652,7 @@ export async function getNameInfo({
       stxBurn: BigInt(data.stx_burn || 0),
       importedAt: data.imported_at ? BigInt(data.imported_at) : null,
       preorderedBy: data.preordered_by,
-      hashedSaltedFqnPreorder: null, // This data isn't exposed via API for security
+      hashedSaltedFqnPreorder: data.hashedSaltedFqnPreorder,
     };
   }
 
