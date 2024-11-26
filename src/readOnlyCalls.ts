@@ -52,10 +52,14 @@ const API_BASE_URL = "https://api.bnsv2.com";
 // Helper function to determine if we should use API
 const shouldUseApi = (network: string) => network === "mainnet";
 
-// Helper function for API calls
-const callApi = async (endpoint: string) => {
+// Helper function for API calls with network support
+const callApi = async (endpoint: string, network: string) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}${endpoint}`);
+    const networkPrefix = network === "testnet" ? "/testnet" : "";
+    const url = `${API_BASE_URL}${networkPrefix}${endpoint}`;
+    debug.log("Making API call to:", url);
+
+    const response = await axios.get(url);
     return response.data;
   } catch (error) {
     debug.error("API call failed:", error);
@@ -66,151 +70,160 @@ const callApi = async (endpoint: string) => {
 export async function getLastTokenId({
   network,
 }: GetLastTokenIdOptions): Promise<bigint> {
-  if (shouldUseApi(network)) {
-    const response = await callApi("/token/last-id");
+  try {
+    const response = await callApi("/token/last-id", network);
     return BigInt(response.last_token_id);
-  }
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
 
-  const bnsFunctionName = "get-last-token-id";
-  const randomAddress = generateRandomAddress();
-  return bnsV2ReadOnlyCall({
-    functionName: bnsFunctionName,
-    senderAddress: randomAddress,
-    functionArgs: [],
-    network,
-  }).then((responseCV: ClarityValue) => {
+    const randomAddress = generateRandomAddress();
+    const responseCV = await bnsV2ReadOnlyCall({
+      functionName: "get-last-token-id",
+      senderAddress: randomAddress,
+      functionArgs: [],
+      network,
+    });
+
     if (responseCV.type === ClarityType.ResponseOk) {
       if (responseCV.value.type === ClarityType.UInt) {
         return responseCV.value.value;
-      } else {
-        throw new Error("Response did not contain a UInt");
       }
-    } else if (responseCV.type === ClarityType.ResponseErr) {
-      throw new Error(cvToString(responseCV.value));
-    } else {
-      throw new Error(
-        `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
-      );
+      throw new Error("Response did not contain a UInt");
     }
-  });
+
+    if (responseCV.type === ClarityType.ResponseErr) {
+      throw new Error(cvToString(responseCV.value));
+    }
+
+    throw new Error(
+      `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
+    );
+  }
 }
 
 export async function getRenewalHeight({
   fullyQualifiedName,
   network,
 }: GetRenewalHeightOptions): Promise<bigint> {
-  if (shouldUseApi(network)) {
-    const response = await callApi(`/names/${fullyQualifiedName}/renewal`);
+  try {
+    const response = await callApi(
+      `/names/${fullyQualifiedName}/renewal`,
+      network
+    );
     return BigInt(response.renewal_height);
-  }
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
 
-  const bnsFunctionName = "get-renewal-height";
-  const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
-  if (subdomain) {
-    throw new Error("Cannot get renewal height for a subdomain");
-  }
-  const randomAddress = generateRandomAddress();
-  const nameId = await getIdFromBns({
-    fullyQualifiedName,
-    network,
-  });
-  return bnsV2ReadOnlyCall({
-    functionName: bnsFunctionName,
-    senderAddress: randomAddress,
-    functionArgs: [uintCV(nameId)],
-    network,
-  }).then((responseCV: ClarityValue) => {
+    const { subdomain } = decodeFQN(fullyQualifiedName);
+    if (subdomain) {
+      throw new Error("Cannot get renewal height for a subdomain");
+    }
+
+    const randomAddress = generateRandomAddress();
+    const nameId = await getIdFromBns({ fullyQualifiedName, network });
+    const responseCV = await bnsV2ReadOnlyCall({
+      functionName: "get-renewal-height",
+      senderAddress: randomAddress,
+      functionArgs: [uintCV(nameId)],
+      network,
+    });
+
     if (responseCV.type === ClarityType.ResponseOk) {
       if (responseCV.value.type === ClarityType.UInt) {
         return responseCV.value.value;
-      } else {
-        throw new Error("Response did not contain a UInt");
       }
-    } else if (responseCV.type === ClarityType.ResponseErr) {
-      throw new Error(cvToString(responseCV.value));
-    } else {
-      throw new Error(
-        `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
-      );
+      throw new Error("Response did not contain a UInt");
     }
-  });
+
+    if (responseCV.type === ClarityType.ResponseErr) {
+      throw new Error(cvToString(responseCV.value));
+    }
+
+    throw new Error(
+      `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
+    );
+  }
 }
 
 export async function canResolveName({
   fullyQualifiedName,
   network,
 }: CanResolveNameOptions): Promise<{ renewal: bigint; owner: string }> {
-  if (shouldUseApi(network)) {
-    const response = await callApi(`/names/${fullyQualifiedName}/can-resolve`);
+  try {
+    const response = await callApi(
+      `/names/${fullyQualifiedName}/can-resolve`,
+      network
+    );
     return {
       renewal: BigInt(response.renewal_height),
       owner: response.owner,
     };
-  }
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
 
-  const bnsFunctionName = "can-resolve-name";
-  const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
-  if (subdomain) {
-    throw new Error("Cannot check resolution for a subdomain");
-  }
-  const randomAddress = generateRandomAddress();
-
-  return bnsV2ReadOnlyCall({
-    functionName: bnsFunctionName,
-    senderAddress: randomAddress,
-    functionArgs: [bufferCVFromString(namespace), bufferCVFromString(name)],
-    network,
-  }).then((responseCV: ClarityValue) => {
-    if (responseCV.type === ClarityType.ResponseOk) {
-      if (responseCV.value.type === ClarityType.Tuple) {
-        const renewalCV = responseCV.value.data["renewal"];
-        const ownerCV = responseCV.value.data["owner"];
-        if (
-          renewalCV.type === ClarityType.UInt &&
-          (ownerCV.type === ClarityType.PrincipalStandard ||
-            ownerCV.type === ClarityType.PrincipalContract)
-        ) {
-          return {
-            renewal: renewalCV.value,
-            owner: cvToString(ownerCV),
-          };
-        } else {
-          throw new Error("Unexpected data types in response tuple");
-        }
-      } else {
-        throw new Error("Response did not contain a Tuple");
-      }
-    } else if (responseCV.type === ClarityType.ResponseErr) {
-      throw new Error(cvToString(responseCV.value));
-    } else {
-      throw new Error(
-        `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
-      );
+    const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+    if (subdomain) {
+      throw new Error("Cannot check resolution for a subdomain");
     }
-  });
+
+    const randomAddress = generateRandomAddress();
+    const responseCV = await bnsV2ReadOnlyCall({
+      functionName: "can-resolve-name",
+      senderAddress: randomAddress,
+      functionArgs: [bufferCVFromString(namespace), bufferCVFromString(name)],
+      network,
+    });
+
+    if (
+      responseCV.type === ClarityType.ResponseOk &&
+      responseCV.value.type === ClarityType.Tuple
+    ) {
+      const renewalCV = responseCV.value.data["renewal"];
+      const ownerCV = responseCV.value.data["owner"];
+
+      if (
+        renewalCV.type === ClarityType.UInt &&
+        (ownerCV.type === ClarityType.PrincipalStandard ||
+          ownerCV.type === ClarityType.PrincipalContract)
+      ) {
+        return {
+          renewal: renewalCV.value,
+          owner: cvToString(ownerCV),
+        };
+      }
+      throw new Error("Unexpected data types in response tuple");
+    }
+
+    throw new Error("Invalid response from contract");
+  }
 }
 
 export async function getOwner({
   fullyQualifiedName,
   network,
 }: GetOwnerOptions): Promise<string | null> {
-  if (shouldUseApi(network)) {
-    const response = await callApi(`/names/${fullyQualifiedName}/owner`);
+  try {
+    const response = await callApi(
+      `/names/${fullyQualifiedName}/owner`,
+      network
+    );
     return response.owner;
-  }
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
 
-  const bnsFunctionName = "get-owner-name";
-  const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
-  if (subdomain) {
-    throw new Error("Cannot check resolution for a subdomain");
-  }
-  const randomAddress = generateRandomAddress();
-  return bnsV2ReadOnlyCall({
-    functionName: bnsFunctionName,
-    senderAddress: randomAddress,
-    functionArgs: [bufferCVFromString(name), bufferCVFromString(namespace)],
-    network,
-  }).then((responseCV: ClarityValue) => {
+    const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+    if (subdomain) {
+      throw new Error("Cannot check resolution for a subdomain");
+    }
+
+    const randomAddress = generateRandomAddress();
+    const responseCV = await bnsV2ReadOnlyCall({
+      functionName: "get-owner-name",
+      senderAddress: randomAddress,
+      functionArgs: [bufferCVFromString(name), bufferCVFromString(namespace)],
+      network,
+    });
+
     if (responseCV.type === ClarityType.ResponseOk) {
       if (responseCV.value.type === ClarityType.OptionalSome) {
         if (
@@ -218,41 +231,36 @@ export async function getOwner({
           responseCV.value.value.type === ClarityType.PrincipalContract
         ) {
           return cvToString(responseCV.value.value);
-        } else {
-          throw new Error("Owner is not a principal");
         }
-      } else if (responseCV.value.type === ClarityType.OptionalNone) {
-        return null;
-      } else {
-        throw new Error("Unexpected Optional type in response");
+        throw new Error("Owner is not a principal");
       }
-    } else if (responseCV.type === ClarityType.ResponseErr) {
-      throw new Error(cvToString(responseCV.value));
-    } else {
-      throw new Error(
-        `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
-      );
+      if (responseCV.value.type === ClarityType.OptionalNone) {
+        return null;
+      }
     }
-  });
+
+    throw new Error("Invalid response from contract");
+  }
 }
 
 export async function getOwnerById({
   id,
   network,
 }: GetOwnerByIdOptions): Promise<string | null> {
-  if (shouldUseApi(network)) {
-    const response = await callApi(`/tokens/${id}/owner`);
+  try {
+    const response = await callApi(`/tokens/${id}/owner`, network);
     return response.owner;
-  }
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
 
-  const bnsFunctionName = "get-owner";
-  const randomAddress = generateRandomAddress();
-  return bnsV2ReadOnlyCall({
-    functionName: bnsFunctionName,
-    senderAddress: randomAddress,
-    functionArgs: [uintCV(id)],
-    network,
-  }).then((responseCV: ClarityValue) => {
+    const randomAddress = generateRandomAddress();
+    const responseCV = await bnsV2ReadOnlyCall({
+      functionName: "get-owner",
+      senderAddress: randomAddress,
+      functionArgs: [uintCV(id)],
+      network,
+    });
+
     if (responseCV.type === ClarityType.ResponseOk) {
       if (responseCV.value.type === ClarityType.OptionalSome) {
         if (
@@ -260,82 +268,79 @@ export async function getOwnerById({
           responseCV.value.value.type === ClarityType.PrincipalContract
         ) {
           return cvToString(responseCV.value.value);
-        } else {
-          throw new Error("Owner is not a principal");
         }
-      } else if (responseCV.value.type === ClarityType.OptionalNone) {
-        return null;
-      } else {
-        throw new Error("Unexpected Optional type in response");
+        throw new Error("Owner is not a principal");
       }
-    } else if (responseCV.type === ClarityType.ResponseErr) {
-      throw new Error(cvToString(responseCV.value));
-    } else {
-      throw new Error(
-        `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
-      );
+      if (responseCV.value.type === ClarityType.OptionalNone) {
+        return null;
+      }
     }
-  });
+
+    throw new Error("Invalid response from contract");
+  }
 }
 
 export async function getIdFromBns({
   fullyQualifiedName,
   network,
 }: GetIdFromBnsOptions): Promise<bigint> {
-  if (shouldUseApi(network)) {
-    const response = await callApi(`/names/${fullyQualifiedName}/id`);
+  try {
+    const response = await callApi(`/names/${fullyQualifiedName}/id`, network);
     return BigInt(response.id);
-  }
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
 
-  const bnsFunctionName = "get-id-from-bns";
-  const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
-  if (subdomain) {
-    throw new Error("Cannot get info for a subdomain");
-  }
-  const randomAddress = generateRandomAddress();
-  return bnsV2ReadOnlyCall({
-    functionName: bnsFunctionName,
-    senderAddress: randomAddress,
-    functionArgs: [bufferCVFromString(name), bufferCVFromString(namespace)],
-    network,
-  }).then((responseCV: ClarityValue) => {
+    const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+    if (subdomain) {
+      throw new Error("Cannot get info for a subdomain");
+    }
+
+    const randomAddress = generateRandomAddress();
+    const responseCV = await bnsV2ReadOnlyCall({
+      functionName: "get-id-from-bns",
+      senderAddress: randomAddress,
+      functionArgs: [bufferCVFromString(name), bufferCVFromString(namespace)],
+      network,
+    });
+
     if (responseCV.type === ClarityType.OptionalSome) {
       if (responseCV.value.type === ClarityType.UInt) {
         return responseCV.value.value;
-      } else {
-        throw new Error("Response did not contain a UInt");
       }
-    } else if (responseCV.type === ClarityType.OptionalNone) {
-      throw new Error("Name not found");
-    } else {
-      throw new Error(
-        `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
-      );
+      throw new Error("Response did not contain a UInt");
     }
-  });
+
+    if (responseCV.type === ClarityType.OptionalNone) {
+      throw new Error("Name not found");
+    }
+
+    throw new Error(
+      `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
+    );
+  }
 }
 
 export async function getBnsFromId({
   id,
   network,
 }: GetBnsFromIdOptions): Promise<{ name: string; namespace: string } | null> {
-  if (shouldUseApi(network)) {
-    const response = await callApi(`/tokens/${id}/name`);
+  try {
+    const response = await callApi(`/tokens/${id}/name`, network);
     return {
       name: response.name,
       namespace: response.namespace,
     };
-  }
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
 
-  const bnsFunctionName = "get-bns-from-id";
-  const randomAddress = generateRandomAddress();
+    const randomAddress = generateRandomAddress();
+    const responseCV = await bnsV2ReadOnlyCall({
+      functionName: "get-bns-from-id",
+      senderAddress: randomAddress,
+      functionArgs: [uintCV(id)],
+      network,
+    });
 
-  return bnsV2ReadOnlyCall({
-    functionName: bnsFunctionName,
-    senderAddress: randomAddress,
-    functionArgs: [uintCV(id)],
-    network,
-  }).then((responseCV: ClarityValue) => {
     if (responseCV.type === ClarityType.OptionalSome) {
       if (responseCV.value.type === ClarityType.Tuple) {
         const nameCV = responseCV.value.data["name"] as BufferCV;
@@ -344,17 +349,18 @@ export async function getBnsFromId({
           name: bufferCV(nameCV.buffer).buffer.toString(),
           namespace: bufferCV(namespaceCV.buffer).buffer.toString(),
         };
-      } else {
-        throw new Error("Response did not contain a Tuple");
       }
-    } else if (responseCV.type === ClarityType.OptionalNone) {
-      return null;
-    } else {
-      throw new Error(
-        `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
-      );
+      throw new Error("Response did not contain a Tuple");
     }
-  });
+
+    if (responseCV.type === ClarityType.OptionalNone) {
+      return null;
+    }
+
+    throw new Error(
+      `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
+    );
+  }
 }
 
 export async function canRegisterName({
@@ -367,28 +373,16 @@ export async function canRegisterName({
     throw new Error("Cannot register a subdomain using registerName");
   }
 
-  // Use API for mainnet
-  if (network === "mainnet") {
-    try {
-      debug.log("Checking name availability via API:", { namespace, name });
-
-      const response = await axios.get(
-        `https://api.bnsv2.com/names/${namespace}/${name}/can-register`
-      );
-
-      debug.log("API response:", response.data);
-
-      return response.data.can_register;
-    } catch (error) {
-      debug.error("API call failed, falling back to contract call:", error);
-
-      // If API fails, fall back to contract call
-      return fallbackContractCall(name, namespace, network);
-    }
+  try {
+    const response = await callApi(
+      `/names/${namespace}/${name}/can-register`,
+      network
+    );
+    return response.can_register;
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
+    return fallbackContractCall(name, namespace, network);
   }
-
-  // Use contract call for testnet
-  return fallbackContractCall(name, namespace, network);
 }
 
 async function fallbackContractCall(
@@ -531,8 +525,8 @@ export async function getNamespaceProperties({
   namespace,
   network,
 }: GetNamespacePropertiesOptions): Promise<NamespaceProperties> {
-  if (shouldUseApi(network)) {
-    const response = await callApi(`/namespaces/${namespace}`);
+  try {
+    const response = await callApi(`/namespaces/${namespace}`, network);
     const namespaceData = response.namespace;
 
     return {
@@ -576,73 +570,69 @@ export async function getNamespaceProperties({
         },
       },
     };
-  }
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
 
-  const bnsFunctionName = "get-namespace-properties";
-  const randomAddress = generateRandomAddress();
-  return bnsV2ReadOnlyCall({
-    functionName: bnsFunctionName,
-    senderAddress: randomAddress,
-    functionArgs: [bufferCVFromString(namespace)],
-    network,
-  }).then((responseCV: ClarityValue) => {
-    if (responseCV.type === ClarityType.ResponseOk) {
-      if (responseCV.value.type === ClarityType.Tuple) {
-        const namespaceCV = responseCV.value.data["namespace"] as BufferCV;
-        const propertiesCV = responseCV.value.data["properties"] as TupleCV;
-        const properties = propertiesCV.data;
-        return {
-          namespace: bufferCV(namespaceCV.buffer).buffer.toString(),
-          properties: {
-            "namespace-manager":
-              properties["namespace-manager"].type === ClarityType.OptionalNone
-                ? null
-                : cvToString(
-                    (properties["namespace-manager"] as SomeCV<PrincipalCV>)
-                      .value
-                  ),
-            "manager-transferable":
-              (properties["manager-transferable"] as BooleanCV).type ===
-              ClarityType.BoolTrue,
-            "manager-frozen":
-              (properties["manager-frozen"] as BooleanCV).type ===
-              ClarityType.BoolTrue,
-            "namespace-import": cvToString(
-              properties["namespace-import"] as PrincipalCV
-            ),
-            "revealed-at": (properties["revealed-at"] as UIntCV).value,
-            "launched-at":
-              properties["launched-at"].type === ClarityType.OptionalNone
-                ? null
-                : (properties["launched-at"] as SomeCV<UIntCV>).value.value,
-            lifetime: (properties["lifetime"] as UIntCV).value,
-            "can-update-price-function":
-              (properties["can-update-price-function"] as BooleanCV).type ===
-              ClarityType.BoolTrue,
-            "price-function": parsePriceFunction(
-              (properties["price-function"] as TupleCV).data
-            ),
-          },
-        };
-      } else {
-        throw new Error("Response did not contain a Tuple");
-      }
-    } else if (responseCV.type === ClarityType.ResponseErr) {
-      throw new Error(cvToString(responseCV.value));
-    } else {
-      throw new Error(
-        `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
-      );
+    const randomAddress = generateRandomAddress();
+    const responseCV = await bnsV2ReadOnlyCall({
+      functionName: "get-namespace-properties",
+      senderAddress: randomAddress,
+      functionArgs: [bufferCVFromString(namespace)],
+      network,
+    });
+
+    if (
+      responseCV.type === ClarityType.ResponseOk &&
+      responseCV.value.type === ClarityType.Tuple
+    ) {
+      const namespaceCV = responseCV.value.data["namespace"] as BufferCV;
+      const propertiesCV = responseCV.value.data["properties"] as TupleCV;
+      const properties = propertiesCV.data;
+
+      return {
+        namespace: bufferCV(namespaceCV.buffer).buffer.toString(),
+        properties: {
+          "namespace-manager":
+            properties["namespace-manager"].type === ClarityType.OptionalNone
+              ? null
+              : cvToString(
+                  (properties["namespace-manager"] as SomeCV<PrincipalCV>).value
+                ),
+          "manager-transferable":
+            (properties["manager-transferable"] as BooleanCV).type ===
+            ClarityType.BoolTrue,
+          "manager-frozen":
+            (properties["manager-frozen"] as BooleanCV).type ===
+            ClarityType.BoolTrue,
+          "namespace-import": cvToString(
+            properties["namespace-import"] as PrincipalCV
+          ),
+          "revealed-at": (properties["revealed-at"] as UIntCV).value,
+          "launched-at":
+            properties["launched-at"].type === ClarityType.OptionalNone
+              ? null
+              : (properties["launched-at"] as SomeCV<UIntCV>).value.value,
+          lifetime: (properties["lifetime"] as UIntCV).value,
+          "can-update-price-function":
+            (properties["can-update-price-function"] as BooleanCV).type ===
+            ClarityType.BoolTrue,
+          "price-function": parsePriceFunction(
+            (properties["price-function"] as TupleCV).data
+          ),
+        },
+      };
     }
-  });
+
+    throw new Error("Invalid response from contract");
+  }
 }
 
 export async function getNameInfo({
   fullyQualifiedName,
   network,
 }: CanRegisterNameOptions): Promise<NameInfo> {
-  if (shouldUseApi(network)) {
-    const response = await callApi(`/names/${fullyQualifiedName}`);
+  try {
+    const response = await callApi(`/names/${fullyQualifiedName}`, network);
     const data = response.data;
 
     return {
@@ -654,61 +644,59 @@ export async function getNameInfo({
       preorderedBy: data.preordered_by,
       hashedSaltedFqnPreorder: data.hashedSaltedFqnPreorder,
     };
-  }
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
 
-  const bnsFunctionName = "get-bns-info";
-  const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
-  if (subdomain) {
-    throw new Error("Cannot get info for a subdomain");
-  }
-  const randomAddress = generateRandomAddress();
-  return bnsV2ReadOnlyCall({
-    functionName: bnsFunctionName,
-    senderAddress: randomAddress,
-    functionArgs: [bufferCVFromString(name), bufferCVFromString(namespace)],
-    network,
-  }).then((responseCV: ClarityValue) => {
-    if (responseCV.type === ClarityType.OptionalSome) {
-      if (responseCV.value.type === ClarityType.Tuple) {
-        const tupleCV = responseCV.value as TupleCV;
-        const properties = tupleCV.data;
-        return {
-          owner: cvToString(properties.owner as PrincipalCV),
-          registeredAt:
-            properties["registered-at"].type === ClarityType.OptionalNone
-              ? null
-              : (properties["registered-at"] as SomeCV<UIntCV>).value.value,
-          renewalHeight: (properties["renewal-height"] as UIntCV).value,
-          stxBurn: (properties["stx-burn"] as UIntCV).value,
-          importedAt:
-            properties["imported-at"].type === ClarityType.OptionalNone
-              ? null
-              : (properties["imported-at"] as SomeCV<UIntCV>).value.value,
-          preorderedBy:
-            properties["preordered-by"].type === ClarityType.OptionalNone
-              ? null
-              : cvToString(
-                  (properties["preordered-by"] as SomeCV<PrincipalCV>).value
-                ),
-          hashedSaltedFqnPreorder:
-            properties["hashed-salted-fqn-preorder"].type ===
-            ClarityType.OptionalNone
-              ? null
-              : (
-                  properties["hashed-salted-fqn-preorder"] as SomeCV<BufferCV>
-                ).value.buffer.toString(),
-        };
-      } else {
-        throw new Error("Response did not contain a Tuple");
-      }
-    } else if (responseCV.type === ClarityType.OptionalNone) {
-      throw new Error("Name not found");
-    } else {
-      throw new Error(
-        `Unexpected Clarity Value type: ${getCVTypeString(responseCV)}`
-      );
+    const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+    if (subdomain) {
+      throw new Error("Cannot get info for a subdomain");
     }
-  });
+
+    const randomAddress = generateRandomAddress();
+    const responseCV = await bnsV2ReadOnlyCall({
+      functionName: "get-bns-info",
+      senderAddress: randomAddress,
+      functionArgs: [bufferCVFromString(name), bufferCVFromString(namespace)],
+      network,
+    });
+
+    if (
+      responseCV.type === ClarityType.OptionalSome &&
+      responseCV.value.type === ClarityType.Tuple
+    ) {
+      const tupleCV = responseCV.value as TupleCV;
+      const properties = tupleCV.data;
+
+      return {
+        owner: cvToString(properties.owner as PrincipalCV),
+        registeredAt:
+          properties["registered-at"].type === ClarityType.OptionalNone
+            ? null
+            : (properties["registered-at"] as SomeCV<UIntCV>).value.value,
+        renewalHeight: (properties["renewal-height"] as UIntCV).value,
+        stxBurn: (properties["stx-burn"] as UIntCV).value,
+        importedAt:
+          properties["imported-at"].type === ClarityType.OptionalNone
+            ? null
+            : (properties["imported-at"] as SomeCV<UIntCV>).value.value,
+        preorderedBy:
+          properties["preordered-by"].type === ClarityType.OptionalNone
+            ? null
+            : cvToString(
+                (properties["preordered-by"] as SomeCV<PrincipalCV>).value
+              ),
+        hashedSaltedFqnPreorder:
+          properties["hashed-salted-fqn-preorder"].type ===
+          ClarityType.OptionalNone
+            ? null
+            : (
+                properties["hashed-salted-fqn-preorder"] as SomeCV<BufferCV>
+              ).value.buffer.toString(),
+      };
+    }
+
+    throw new Error("Invalid response from contract");
+  }
 }
 
 export async function getPrimaryName({
@@ -762,102 +750,84 @@ export async function fetchUserOwnedNames({
 }: FetchUserOwnedNamesOptions): Promise<
   Array<{ name: string; namespace: string }>
 > {
-  if (shouldUseApi(network)) {
-    try {
-      // Start with first page
-      let allNames: Array<{ name_string: string; namespace_string: string }> =
-        [];
-      let offset = 0;
-      const limit = 50;
+  try {
+    let allNames: Array<{ name_string: string; namespace_string: string }> = [];
+    let offset = 0;
+    const limit = 50;
 
-      while (true) {
-        const response = await callApi(
-          `/names/address/${senderAddress}/valid?limit=${limit}&offset=${offset}`
-        );
+    while (true) {
+      const response = await callApi(
+        `/names/address/${senderAddress}/valid?limit=${limit}&offset=${offset}`,
+        network
+      );
 
-        // Add names from current page
-        allNames = allNames.concat(response.names);
+      allNames = allNames.concat(response.names);
 
-        // Check if we've fetched all names
-        if (
-          response.names.length < limit ||
-          allNames.length >= response.total
-        ) {
-          break;
-        }
-
-        // Move to next page
-        offset += limit;
+      if (response.names.length < limit || allNames.length >= response.total) {
+        break;
       }
 
-      // Transform to expected format
-      return allNames.map((name) => ({
-        name: name.name_string,
-        namespace: name.namespace_string,
-      }));
-    } catch (error) {
-      debug.error("Error fetching names from API:", error);
-      throw error;
+      offset += limit;
     }
-  } else {
-    // Testnet implementation using Hiro API
-    const apiUrl = "https://api.testnet.hiro.so";
+
+    return allNames.map((name) => ({
+      name: name.name_string,
+      namespace: name.namespace_string,
+    }));
+  } catch (error) {
+    debug.error("API call failed, falling back to contract call:", error);
+
     const contractAddress = getBnsContractAddress(network);
-    const contractName = BnsContractName;
-    const assetIdentifier = `${contractAddress}.${contractName}::BNS-V2`;
+    const assetIdentifier = `${contractAddress}.${BnsContractName}::BNS-V2`;
+    const apiUrl =
+      network === "mainnet"
+        ? "https://api.hiro.so"
+        : "https://api.testnet.hiro.so";
+
     let allAssets: number[] = [];
     let offset = 0;
     const limit = 50;
 
-    try {
-      while (true) {
-        const response = await axios.get(
-          `${apiUrl}/extended/v1/tokens/nft/holdings?principal=${senderAddress}&asset_identifiers=${assetIdentifier}&limit=${limit}&offset=${offset}`
-        );
-
-        const assets = response.data.results.map(
-          (asset: { value: { repr: string } }) =>
-            parseInt(asset.value.repr.slice(1))
-        );
-
-        allAssets = allAssets.concat(assets);
-
-        if (response.data.total <= offset + limit) {
-          break;
-        }
-
-        offset += limit;
-      }
-
-      // Fetch BNS details for each token ID
-      const bnsPromises = allAssets.map((id) =>
-        getBnsFromId({ id: BigInt(id), network })
+    while (true) {
+      const response = await axios.get(
+        `${apiUrl}/extended/v1/tokens/nft/holdings?principal=${senderAddress}&asset_identifiers=${assetIdentifier}&limit=${limit}&offset=${offset}`
       );
 
-      const bnsResults = await Promise.all(bnsPromises);
+      const assets = response.data.results.map(
+        (asset: { value: { repr: string } }) =>
+          parseInt(asset.value.repr.slice(1))
+      );
 
-      // Filter out null results and transform names
-      const sortedNames = bnsResults
-        .filter(
-          (result): result is { name: string; namespace: string } =>
-            result !== null
-        )
-        .map((result) => ({
-          name: asciiToUtf8(result.name),
-          namespace: asciiToUtf8(result.namespace),
-        }))
-        .sort((a, b) => {
-          if (a.namespace !== b.namespace) {
-            return a.namespace.localeCompare(b.namespace);
-          }
-          return a.name.localeCompare(b.name);
-        });
+      allAssets = allAssets.concat(assets);
 
-      return sortedNames;
-    } catch (error) {
-      debug.error("Error fetching names from Hiro API:", error);
-      throw error;
+      if (response.data.total <= offset + limit) {
+        break;
+      }
+
+      offset += limit;
     }
+
+    const bnsPromises = allAssets.map((id) =>
+      getBnsFromId({ id: BigInt(id), network })
+    );
+
+    const bnsResults = await Promise.all(bnsPromises);
+
+    return bnsResults
+      .filter(
+        (result): result is { name: string; namespace: string } =>
+          result !== null
+      )
+      .map((result) => ({
+        name: asciiToUtf8(result.name),
+        namespace: asciiToUtf8(result.namespace),
+      }))
+      .sort((a, b) => {
+        if (a.namespace !== b.namespace) {
+          return a.namespace.localeCompare(b.namespace);
+        }
+        return a.name.localeCompare(b.name);
+      });
   }
 }
 
@@ -865,52 +835,47 @@ export async function resolveNameZonefile({
   fullyQualifiedName,
   network,
 }: ResolveNameOptions): Promise<ZonefileData | null> {
-  if (shouldUseApi(network)) {
-    try {
-      const response = await callApi(`/resolve-name/${fullyQualifiedName}`);
-      // API already returns parsed zonefile data
-      return response.zonefile || null;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        return null;
-      }
-      throw error;
-    }
-  }
-
-  const zonefileFunctionName = "resolve-name";
-  const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
-  if (subdomain) {
-    throw new Error("Cannot resolve a subdomain");
-  }
-  const randomAddress = generateRandomAddress();
-
   try {
+    const response = await callApi(
+      `/resolve-name/${fullyQualifiedName}`,
+      network
+    );
+    return response.zonefile || null;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+
+    debug.error("API call failed, falling back to contract call:", error);
+
+    const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+    if (subdomain) {
+      throw new Error("Cannot resolve a subdomain");
+    }
+
+    const randomAddress = generateRandomAddress();
     const responseCV = await zonefileReadOnlyCall({
-      functionName: zonefileFunctionName,
+      functionName: "resolve-name",
       senderAddress: randomAddress,
       functionArgs: [bufferCVFromString(name), bufferCVFromString(namespace)],
       network,
     });
 
-    if (
-      responseCV.type === ClarityType.ResponseOk &&
-      responseCV.value.type === ClarityType.OptionalSome &&
-      responseCV.value.value.type === ClarityType.Buffer
-    ) {
-      const zonefileString = Buffer.from(
-        responseCV.value.value.buffer
-      ).toString("utf8");
-      return parseZonefile(zonefileString);
-    } else if (
-      responseCV.type === ClarityType.ResponseOk &&
-      responseCV.value.type === ClarityType.OptionalNone
-    ) {
-      return null;
+    if (responseCV.type === ClarityType.ResponseOk) {
+      if (
+        responseCV.value.type === ClarityType.OptionalSome &&
+        responseCV.value.value.type === ClarityType.Buffer
+      ) {
+        const zonefileString = Buffer.from(
+          responseCV.value.value.buffer
+        ).toString("utf8");
+        return parseZonefile(zonefileString);
+      }
+      if (responseCV.value.type === ClarityType.OptionalNone) {
+        return null;
+      }
     }
 
-    throw new Error("No Zonefile Found");
-  } catch (error) {
-    throw error;
+    throw new Error("Invalid response from contract");
   }
 }
