@@ -15,6 +15,7 @@ export {
   getPrimaryName,
   fetchUserOwnedNames,
   resolveNameZonefile,
+  getIdFromBns,
 } from "./readOnlyCalls";
 
 // Contract interaction functions
