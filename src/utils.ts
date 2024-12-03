@@ -3,7 +3,6 @@ import { ClarityValue, UIntCV, ListCV } from "@stacks/transactions";
 import {
   makeRandomPrivKey,
   getAddressFromPrivateKey,
-  privateKeyToString,
 } from "@stacks/transactions";
 import { CallbackFunction } from "./config";
 
@@ -29,7 +28,7 @@ export function decodeFQN(fqdn: string): {
 export function parsePriceFunction(data: {
   [key: string]: ClarityValue;
 }): PriceFunction {
-  const buckets = (data["buckets"] as ListCV<UIntCV>).list;
+  const buckets = (data["buckets"] as ListCV<UIntCV>).value;
   return {
     base: (data["base"] as UIntCV).value,
     coefficient: (data["coeff"] as UIntCV).value,
@@ -63,7 +62,7 @@ export function asciiToUtf8(asciiCodes: string): string {
 
 export function generateRandomAddress() {
   const randomPrivateKey = makeRandomPrivKey();
-  const privateKeyString = privateKeyToString(randomPrivateKey);
+  const privateKeyString = randomPrivateKey;
   const randomAddress = getAddressFromPrivateKey(privateKeyString);
 
   return randomAddress;

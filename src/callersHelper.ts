@@ -1,4 +1,4 @@
-import { ClarityValue, callReadOnlyFunction } from "@stacks/transactions";
+import { ClarityValue, fetchCallReadOnlyFunction } from "@stacks/transactions";
 import {
   BnsContractName,
   getBnsContractAddress,
@@ -37,13 +37,13 @@ async function executeReadOnlyCall(
         : new StacksTestnet({ url });
 
     try {
-      const response = await callReadOnlyFunction({
+      const response = await fetchCallReadOnlyFunction({
         contractAddress,
         contractName,
         functionName: options.functionName,
         functionArgs: options.functionArgs,
         senderAddress: options.senderAddress,
-        network: currentNetwork,
+        network: networkType,
       });
 
       if ((response as any).error) {

@@ -49,9 +49,6 @@ import { debug } from "./debug";
 
 const API_BASE_URL = "https://api.bnsv2.com";
 
-// Helper function to determine if we should use API
-const shouldUseApi = (network: string) => network === "mainnet";
-
 // Helper function for API calls with network support
 const callApi = async (endpoint: string, network: string) => {
   try {
@@ -69,10 +66,10 @@ const callApi = async (endpoint: string, network: string) => {
 
 export async function getLastTokenId({
   network,
-}: GetLastTokenIdOptions): Promise<bigint> {
+}: GetLastTokenIdOptions): Promise<bigint | string | number> {
   try {
     const response = await callApi("/token/last-id", network);
-    return BigInt(response.last_token_id);
+    return response.last_token_id;
   } catch (error) {
     debug.error("API call failed, falling back to contract call:", error);
 
@@ -104,7 +101,7 @@ export async function getLastTokenId({
 export async function getRenewalHeight({
   fullyQualifiedName,
   network,
-}: GetRenewalHeightOptions): Promise<bigint> {
+}: GetRenewalHeightOptions): Promise<bigint | string | number> {
   try {
     const response = await callApi(
       `/names/${fullyQualifiedName}/renewal`,
@@ -148,7 +145,10 @@ export async function getRenewalHeight({
 export async function canResolveName({
   fullyQualifiedName,
   network,
-}: CanResolveNameOptions): Promise<{ renewal: bigint; owner: string }> {
+}: CanResolveNameOptions): Promise<{
+  renewal: bigint | string | number;
+  owner: string;
+}> {
   try {
     const response = await callApi(
       `/names/${fullyQualifiedName}/can-resolve`,
@@ -178,8 +178,8 @@ export async function canResolveName({
       responseCV.type === ClarityType.ResponseOk &&
       responseCV.value.type === ClarityType.Tuple
     ) {
-      const renewalCV = responseCV.value.data["renewal"];
-      const ownerCV = responseCV.value.data["owner"];
+      const renewalCV = responseCV.value.value["renewal"];
+      const ownerCV = responseCV.value.value["owner"];
 
       if (
         renewalCV.type === ClarityType.UInt &&
@@ -283,7 +283,7 @@ export async function getOwnerById({
 export async function getIdFromBns({
   fullyQualifiedName,
   network,
-}: GetIdFromBnsOptions): Promise<bigint> {
+}: GetIdFromBnsOptions): Promise<bigint | string | number> {
   try {
     const response = await callApi(`/names/${fullyQualifiedName}/id`, network);
     return BigInt(response.id);
@@ -343,11 +343,11 @@ export async function getBnsFromId({
 
     if (responseCV.type === ClarityType.OptionalSome) {
       if (responseCV.value.type === ClarityType.Tuple) {
-        const nameCV = responseCV.value.data["name"] as BufferCV;
-        const namespaceCV = responseCV.value.data["namespace"] as BufferCV;
+        const nameCV = responseCV.value.value["name"] as BufferCV;
+        const namespaceCV = responseCV.value.value["namespace"] as BufferCV;
         return {
-          name: bufferCV(nameCV.buffer).buffer.toString(),
-          namespace: bufferCV(namespaceCV.buffer).buffer.toString(),
+          name: nameCV.value.toString(),
+          namespace: nameCV.value.toString(),
         };
       }
       throw new Error("Response did not contain a Tuple");
@@ -415,7 +415,7 @@ async function fallbackContractCall(
 export async function getNamespacePrice({
   namespace,
   network,
-}: GetNamespacePriceOptions): Promise<bigint> {
+}: GetNamespacePriceOptions): Promise<bigint | string | number> {
   const bnsFunctionName = "get-namespace-price";
   const randomAddress = generateRandomAddress();
 
@@ -447,7 +447,7 @@ export async function getNamespacePrice({
 export async function getNamePrice({
   fullyQualifiedName,
   network,
-}: GetNamePriceOptions): Promise<bigint> {
+}: GetNamePriceOptions): Promise<bigint | string | number> {
   const bnsFunctionName = "get-name-price";
   const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
   if (subdomain) {
@@ -585,12 +585,12 @@ export async function getNamespaceProperties({
       responseCV.type === ClarityType.ResponseOk &&
       responseCV.value.type === ClarityType.Tuple
     ) {
-      const namespaceCV = responseCV.value.data["namespace"] as BufferCV;
-      const propertiesCV = responseCV.value.data["properties"] as TupleCV;
-      const properties = propertiesCV.data;
+      const namespaceCV = responseCV.value.value["namespace"] as BufferCV;
+      const propertiesCV = responseCV.value.value["properties"] as TupleCV;
+      const properties = propertiesCV.value;
 
       return {
-        namespace: bufferCV(namespaceCV.buffer).buffer.toString(),
+        namespace: namespaceCV.value.toString(),
         properties: {
           "namespace-manager":
             properties["namespace-manager"].type === ClarityType.OptionalNone
@@ -617,7 +617,7 @@ export async function getNamespaceProperties({
             (properties["can-update-price-function"] as BooleanCV).type ===
             ClarityType.BoolTrue,
           "price-function": parsePriceFunction(
-            (properties["price-function"] as TupleCV).data
+            (properties["price-function"] as TupleCV).value
           ),
         },
       };
@@ -665,7 +665,7 @@ export async function getNameInfo({
       responseCV.value.type === ClarityType.Tuple
     ) {
       const tupleCV = responseCV.value as TupleCV;
-      const properties = tupleCV.data;
+      const properties = tupleCV.value;
 
       return {
         owner: cvToString(properties.owner as PrincipalCV),
@@ -691,7 +691,7 @@ export async function getNameInfo({
             ? null
             : (
                 properties["hashed-salted-fqn-preorder"] as SomeCV<BufferCV>
-              ).value.buffer.toString(),
+              ).value.toString(),
       };
     }
 
@@ -713,20 +713,20 @@ export async function getPrimaryName({
   }).then((responseCV: ClarityValue) => {
     if (responseCV.type === ClarityType.ResponseOk) {
       if (responseCV.value.type === ClarityType.Tuple) {
-        const nameCV = responseCV.value.data["name"] as BufferCV;
-        const namespaceCV = responseCV.value.data["namespace"] as BufferCV;
+        const nameCV = responseCV.value.value["name"] as BufferCV;
+        const namespaceCV = responseCV.value.value["namespace"] as BufferCV;
         return {
-          name: Buffer.from(nameCV.buffer).toString(),
-          namespace: Buffer.from(namespaceCV.buffer).toString(),
+          name: Buffer.from(nameCV.value).toString(),
+          namespace: Buffer.from(namespaceCV.value).toString(),
         };
       } else if (responseCV.value.type === ClarityType.OptionalSome) {
         const innerValue = responseCV.value.value;
         if (innerValue.type === ClarityType.Tuple) {
-          const nameCV = innerValue.data["name"] as BufferCV;
-          const namespaceCV = innerValue.data["namespace"] as BufferCV;
+          const nameCV = innerValue.value["name"] as BufferCV;
+          const namespaceCV = innerValue.value["namespace"] as BufferCV;
           return {
-            name: Buffer.from(nameCV.buffer).toString(),
-            namespace: Buffer.from(namespaceCV.buffer).toString(),
+            name: Buffer.from(nameCV.value).toString(),
+            namespace: Buffer.from(namespaceCV.value).toString(),
           };
         }
       }
@@ -867,7 +867,7 @@ export async function resolveNameZonefile({
         responseCV.value.value.type === ClarityType.Buffer
       ) {
         const zonefileString = Buffer.from(
-          responseCV.value.value.buffer
+          responseCV.value.value.value
         ).toString("utf8");
         return parseZonefile(zonefileString);
       }

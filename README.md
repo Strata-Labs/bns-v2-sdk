@@ -22,7 +22,9 @@ npm install bns-v2-sdk
 
 ## Important Note About Transactions
 
-**This SDK only builds transaction payloads.** It does not:
+**This SDK only builds transaction payloads.** 
+
+It does not:
 
 - Sign transactions
 - Broadcast transactions to the network
