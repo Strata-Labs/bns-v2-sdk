@@ -40,9 +40,12 @@ async function buildTransferNameTx({ fullyQualifiedName, newOwnerAddress, sender
         (0, transactions_1.standardPrincipalCV)(senderAddress),
         (0, transactions_1.standardPrincipalCV)(newOwnerAddress),
     ];
-    const assetInfo = (0, transactions_1.createAssetInfo)((0, config_1.getBnsContractAddress)(network), config_1.BnsContractName, "BNS-V2");
-    const postConditionSender = (0, transactions_1.createNonFungiblePostCondition)(senderAddress, transactions_1.NonFungibleConditionCode.Sends, assetInfo, (0, transactions_1.uintCV)(id));
-    const postConditionReceiver = (0, transactions_1.createNonFungiblePostCondition)(newOwnerAddress, transactions_1.NonFungibleConditionCode.DoesNotSend, assetInfo, (0, transactions_1.uintCV)(id));
+    const postConditionSender = transactions_1.Pc.principal(senderAddress)
+        .willSendAsset()
+        .nft(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}::BNS-V2`, (0, transactions_1.uintCV)(id));
+    const postConditionReceiver = transactions_1.Pc.principal(newOwnerAddress)
+        .willNotSendAsset()
+        .nft(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}::BNS-V2`, (0, transactions_1.uintCV)(id));
     return {
         contractAddress: (0, config_1.getBnsContractAddress)(network),
         contractName: config_1.BnsContractName,
@@ -84,10 +87,13 @@ async function buildBuyInUstxTx({ id, expectedPrice, commissionTraitAddress, com
     if (!currentOwner) {
         throw new Error("Failed to fetch current owner of the name");
     }
-    const postConditions = [
-        (0, transactions_1.makeStandardSTXPostCondition)(senderAddress, transactions_1.FungibleConditionCode.LessEqual, expectedPrice),
-        (0, transactions_1.makeStandardNonFungiblePostCondition)(currentOwner, transactions_1.NonFungibleConditionCode.Sends, (0, transactions_1.createAssetInfo)((0, config_1.getBnsContractAddress)(network), config_1.BnsContractName, "BNS-V2"), (0, transactions_1.uintCV)(id)),
-    ];
+    const senderPostCondition = transactions_1.Pc.principal(senderAddress)
+        .willSendLte(expectedPrice)
+        .ustx();
+    const ownerPostCondition = transactions_1.Pc.principal(currentOwner)
+        .willSendAsset()
+        .nft(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}::BNS-V2`, (0, transactions_1.uintCV)(id));
+    const postConditions = [senderPostCondition, ownerPostCondition];
     return {
         contractAddress: (0, config_1.getBnsContractAddress)(network),
         contractName: config_1.BnsContractName,
@@ -118,7 +124,9 @@ async function buildSetPrimaryNameTx({ fullyQualifiedName, senderAddress, networ
         throw new Error("Failed to fetch current owner of the name");
     }
     const postConditions = [
-        (0, transactions_1.makeStandardNonFungiblePostCondition)(currentOwner, transactions_1.NonFungibleConditionCode.DoesNotSend, (0, transactions_1.createAssetInfo)((0, config_1.getBnsContractAddress)(network), config_1.BnsContractName, "BNS-V2"), (0, transactions_1.uintCV)(id)),
+        transactions_1.Pc.principal(currentOwner)
+            .willNotSendAsset()
+            .nft(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}::BNS-V2`, (0, transactions_1.uintCV)(id)),
     ];
     return {
         contractAddress: (0, config_1.getBnsContractAddress)(network),
@@ -157,7 +165,9 @@ async function buildPreorderNamespaceTx({ namespace, salt, stxToBurn, senderAddr
     const bnsFunctionName = "namespace-preorder";
     const saltedNamespaceBytes = (0, common_1.utf8ToBytes)(`${namespace}.${salt}`);
     const hashedSaltedNamespace = (0, transactions_1.hash160)(saltedNamespaceBytes);
-    const burnSTXPostCondition = (0, transactions_1.createSTXPostCondition)(senderAddress, transactions_1.FungibleConditionCode.Equal, stxToBurn);
+    const burnSTXPostCondition = transactions_1.Pc.principal(senderAddress)
+        .willSendEq(stxToBurn)
+        .ustx();
     return {
         contractAddress: (0, config_1.getBnsContractAddress)(network),
         contractName: config_1.BnsContractName,
@@ -313,7 +323,9 @@ async function buildNameClaimFastTx({ fullyQualifiedName, stxToBurn, sendTo, sen
         : (0, transactions_1.standardPrincipalCV)(sendTo);
     let postConditions = [];
     if (stxToBurn > 0) {
-        const burnSTXPostCondition = (0, transactions_1.createSTXPostCondition)(senderAddress, transactions_1.FungibleConditionCode.Equal, stxToBurn);
+        const burnSTXPostCondition = transactions_1.Pc.principal(senderAddress)
+            .willSendEq(stxToBurn)
+            .ustx();
         postConditions.push(burnSTXPostCondition);
     }
     return {
@@ -339,7 +351,9 @@ async function buildPreorderNameTx({ fullyQualifiedName, salt, stxToBurn, sender
     const hashedSaltedName = (0, transactions_1.hash160)(saltedNamesBytes);
     let postConditions = [];
     if (stxToBurn > 0) {
-        const burnSTXPostCondition = (0, transactions_1.createSTXPostCondition)(senderAddress, transactions_1.FungibleConditionCode.Equal, stxToBurn);
+        const burnSTXPostCondition = transactions_1.Pc.principal(senderAddress)
+            .willSendEq(stxToBurn)
+            .ustx();
         postConditions.push(burnSTXPostCondition);
     }
     return {
@@ -359,7 +373,9 @@ async function buildRegisterNameTx({ fullyQualifiedName, salt, stxToBurn, sender
     }
     let postConditions = [];
     if (stxToBurn > 0) {
-        const burnSTXPostCondition = (0, transactions_1.makeContractSTXPostCondition)((0, config_1.getBnsContractAddress)(network), config_1.BnsContractName, transactions_1.FungibleConditionCode.Equal, stxToBurn);
+        const burnSTXPostCondition = transactions_1.Pc.principal(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}`)
+            .willSendEq(stxToBurn)
+            .ustx();
         postConditions.push(burnSTXPostCondition);
     }
     return {
@@ -393,10 +409,14 @@ async function buildPreviousRegisterNameTx({ fullyQualifiedName, salt, stxToBurn
     }
     let postConditions = [];
     if (stxToBurn > 0) {
-        const burnSTXPostCondition = (0, transactions_1.makeContractSTXPostCondition)((0, config_1.getBnsContractAddress)(network), config_1.BnsContractName, transactions_1.FungibleConditionCode.Equal, stxToBurn);
+        const burnSTXPostCondition = transactions_1.Pc.principal(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}`)
+            .willSendEq(stxToBurn)
+            .ustx();
         postConditions.push(burnSTXPostCondition);
     }
-    const transferNFTPostCondition = (0, transactions_1.makeStandardNonFungiblePostCondition)(currentOwner, transactions_1.NonFungibleConditionCode.Sends, (0, transactions_1.createAssetInfo)((0, config_1.getBnsContractAddress)(network), config_1.BnsContractName, "BNS-V2"), (0, transactions_1.uintCV)(nameId));
+    const transferNFTPostCondition = transactions_1.Pc.principal(currentOwner)
+        .willSendAsset()
+        .nft(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}::BNS-V2`, (0, transactions_1.uintCV)(nameId));
     postConditions.push(transferNFTPostCondition);
     return {
         contractAddress: (0, config_1.getBnsContractAddress)(network),
@@ -419,7 +439,9 @@ async function buildClaimPreorderTx({ fullyQualifiedName, salt, stxToClaim, send
     }
     const saltedNamesBytes = (0, common_1.utf8ToBytes)(`${fullyQualifiedName}${salt}`);
     const hashedSaltedName = (0, transactions_1.hash160)(saltedNamesBytes);
-    const returnSTXPostCondition = (0, transactions_1.makeContractSTXPostCondition)((0, config_1.getBnsContractAddress)(network), config_1.BnsContractName, transactions_1.FungibleConditionCode.Equal, stxToClaim);
+    const returnSTXPostCondition = transactions_1.Pc.principal(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}`)
+        .willSendEq(stxToClaim)
+        .ustx();
     return {
         contractAddress: (0, config_1.getBnsContractAddress)(network),
         contractName: config_1.BnsContractName,
@@ -435,7 +457,9 @@ async function buildRenewNameTx({ fullyQualifiedName, stxToBurn, senderAddress, 
     if (subdomain) {
         throw new Error("Cannot renew a subdomain using renewName()");
     }
-    const burnSTXPostCondition = (0, transactions_1.createSTXPostCondition)(senderAddress, transactions_1.FungibleConditionCode.Equal, stxToBurn);
+    const burnSTXPostCondition = transactions_1.Pc.principal(senderAddress)
+        .willSendEq(stxToBurn)
+        .ustx();
     return {
         contractAddress: (0, config_1.getBnsContractAddress)(network),
         contractName: config_1.BnsContractName,
@@ -470,7 +494,6 @@ async function buildUpdateZonefileTx({ fullyQualifiedName, zonefileInputs, sende
         network,
     };
 }
-// Import defaultPriceFunction from the existing code
 const defaultPriceFunction = {
     base: 1n,
     coefficient: 1n,

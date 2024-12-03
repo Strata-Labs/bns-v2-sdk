@@ -6,17 +6,9 @@ import {
   uintCV,
   someCV,
   noneCV,
-  // createSTXPostCondition,
-  FungibleConditionCode,
-  // createNonFungiblePostCondition,
-  NonFungibleConditionCode,
   bufferCVFromString,
   boolCV,
   contractPrincipalCV,
-  // makeContractSTXPostCondition,
-  // makeStandardSTXPostCondition,
-  // makeStandardNonFungiblePostCondition,
-  // createAssetInfo,
   Pc,
 } from "@stacks/transactions";
 import {
@@ -58,8 +50,6 @@ export async function buildTransferNameTx({
     standardPrincipalCV(senderAddress),
     standardPrincipalCV(newOwnerAddress),
   ];
-
-  const assetInfo = (getBnsContractAddress(network), BnsContractName, "BNS-V2");
 
   const postConditionSender = Pc.principal(senderAddress)
     .willSendAsset()
@@ -720,7 +710,6 @@ export async function buildUpdateZonefileTx({
   };
 }
 
-// Import defaultPriceFunction from the existing code
 const defaultPriceFunction: Types.PriceFunction = {
   base: 1n,
   coefficient: 1n,

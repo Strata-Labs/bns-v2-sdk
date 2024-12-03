@@ -1,20 +1,20 @@
 import { CanNamespaceBeRegisteredOptions, CanRegisterNameOptions, CanResolveNameOptions, FetchUserOwnedNamesOptions, GetBnsFromIdOptions, GetIdFromBnsOptions, GetLastTokenIdOptions, GetNamePriceOptions, GetNamespacePriceOptions, GetNamespacePropertiesOptions, GetOwnerOptions, GetPrimaryNameOptions, GetRenewalHeightOptions, NamespaceProperties, NameInfo, ResolveNameOptions, ZonefileData, GetOwnerByIdOptions } from "./interfaces";
-export declare function getLastTokenId({ network, }: GetLastTokenIdOptions): Promise<bigint>;
-export declare function getRenewalHeight({ fullyQualifiedName, network, }: GetRenewalHeightOptions): Promise<bigint>;
+export declare function getLastTokenId({ network, }: GetLastTokenIdOptions): Promise<bigint | string | number>;
+export declare function getRenewalHeight({ fullyQualifiedName, network, }: GetRenewalHeightOptions): Promise<bigint | string | number>;
 export declare function canResolveName({ fullyQualifiedName, network, }: CanResolveNameOptions): Promise<{
-    renewal: bigint;
+    renewal: bigint | string | number;
     owner: string;
 }>;
 export declare function getOwner({ fullyQualifiedName, network, }: GetOwnerOptions): Promise<string | null>;
 export declare function getOwnerById({ id, network, }: GetOwnerByIdOptions): Promise<string | null>;
-export declare function getIdFromBns({ fullyQualifiedName, network, }: GetIdFromBnsOptions): Promise<bigint>;
+export declare function getIdFromBns({ fullyQualifiedName, network, }: GetIdFromBnsOptions): Promise<bigint | string | number>;
 export declare function getBnsFromId({ id, network, }: GetBnsFromIdOptions): Promise<{
     name: string;
     namespace: string;
 } | null>;
 export declare function canRegisterName({ fullyQualifiedName, network, }: CanRegisterNameOptions): Promise<boolean>;
-export declare function getNamespacePrice({ namespace, network, }: GetNamespacePriceOptions): Promise<bigint>;
-export declare function getNamePrice({ fullyQualifiedName, network, }: GetNamePriceOptions): Promise<bigint>;
+export declare function getNamespacePrice({ namespace, network, }: GetNamespacePriceOptions): Promise<bigint | string | number>;
+export declare function getNamePrice({ fullyQualifiedName, network, }: GetNamePriceOptions): Promise<bigint | string | number>;
 export declare function canNamespaceBeRegistered({ namespace, network, }: CanNamespaceBeRegisteredOptions): Promise<boolean>;
 export declare function getNamespaceProperties({ namespace, network, }: GetNamespacePropertiesOptions): Promise<NamespaceProperties>;
 export declare function getNameInfo({ fullyQualifiedName, network, }: CanRegisterNameOptions): Promise<NameInfo>;

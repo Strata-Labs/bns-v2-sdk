@@ -26,8 +26,6 @@ const config_1 = require("./config");
 const callersHelper_1 = require("./callersHelper");
 const debug_1 = require("./debug");
 const API_BASE_URL = "https://api.bnsv2.com";
-// Helper function to determine if we should use API
-const shouldUseApi = (network) => network === "mainnet";
 // Helper function for API calls with network support
 const callApi = async (endpoint, network) => {
     try {
@@ -45,7 +43,7 @@ const callApi = async (endpoint, network) => {
 async function getLastTokenId({ network, }) {
     try {
         const response = await callApi("/token/last-id", network);
-        return BigInt(response.last_token_id);
+        return response.last_token_id;
     }
     catch (error) {
         debug_1.debug.error("API call failed, falling back to contract call:", error);
@@ -122,8 +120,8 @@ async function canResolveName({ fullyQualifiedName, network, }) {
         });
         if (responseCV.type === transactions_1.ClarityType.ResponseOk &&
             responseCV.value.type === transactions_1.ClarityType.Tuple) {
-            const renewalCV = responseCV.value.data["renewal"];
-            const ownerCV = responseCV.value.data["owner"];
+            const renewalCV = responseCV.value.value["renewal"];
+            const ownerCV = responseCV.value.value["owner"];
             if (renewalCV.type === transactions_1.ClarityType.UInt &&
                 (ownerCV.type === transactions_1.ClarityType.PrincipalStandard ||
                     ownerCV.type === transactions_1.ClarityType.PrincipalContract)) {
@@ -248,11 +246,11 @@ async function getBnsFromId({ id, network, }) {
         });
         if (responseCV.type === transactions_1.ClarityType.OptionalSome) {
             if (responseCV.value.type === transactions_1.ClarityType.Tuple) {
-                const nameCV = responseCV.value.data["name"];
-                const namespaceCV = responseCV.value.data["namespace"];
+                const nameCV = responseCV.value.value["name"];
+                const namespaceCV = responseCV.value.value["namespace"];
                 return {
-                    name: (0, transactions_1.bufferCV)(nameCV.buffer).buffer.toString(),
-                    namespace: (0, transactions_1.bufferCV)(namespaceCV.buffer).buffer.toString(),
+                    name: nameCV.value.toString(),
+                    namespace: nameCV.value.toString(),
                 };
             }
             throw new Error("Response did not contain a Tuple");
@@ -449,11 +447,11 @@ async function getNamespaceProperties({ namespace, network, }) {
         });
         if (responseCV.type === transactions_1.ClarityType.ResponseOk &&
             responseCV.value.type === transactions_1.ClarityType.Tuple) {
-            const namespaceCV = responseCV.value.data["namespace"];
-            const propertiesCV = responseCV.value.data["properties"];
-            const properties = propertiesCV.data;
+            const namespaceCV = responseCV.value.value["namespace"];
+            const propertiesCV = responseCV.value.value["properties"];
+            const properties = propertiesCV.value;
             return {
-                namespace: (0, transactions_1.bufferCV)(namespaceCV.buffer).buffer.toString(),
+                namespace: namespaceCV.value.toString(),
                 properties: {
                     "namespace-manager": properties["namespace-manager"].type === transactions_1.ClarityType.OptionalNone
                         ? null
@@ -470,7 +468,7 @@ async function getNamespaceProperties({ namespace, network, }) {
                     lifetime: properties["lifetime"].value,
                     "can-update-price-function": properties["can-update-price-function"].type ===
                         transactions_1.ClarityType.BoolTrue,
-                    "price-function": (0, utils_1.parsePriceFunction)(properties["price-function"].data),
+                    "price-function": (0, utils_1.parsePriceFunction)(properties["price-function"].value),
                 },
             };
         }
@@ -507,7 +505,7 @@ async function getNameInfo({ fullyQualifiedName, network, }) {
         if (responseCV.type === transactions_1.ClarityType.OptionalSome &&
             responseCV.value.type === transactions_1.ClarityType.Tuple) {
             const tupleCV = responseCV.value;
-            const properties = tupleCV.data;
+            const properties = tupleCV.value;
             return {
                 owner: (0, transactions_1.cvToString)(properties.owner),
                 registeredAt: properties["registered-at"].type === transactions_1.ClarityType.OptionalNone
@@ -524,7 +522,7 @@ async function getNameInfo({ fullyQualifiedName, network, }) {
                 hashedSaltedFqnPreorder: properties["hashed-salted-fqn-preorder"].type ===
                     transactions_1.ClarityType.OptionalNone
                     ? null
-                    : properties["hashed-salted-fqn-preorder"].value.buffer.toString(),
+                    : properties["hashed-salted-fqn-preorder"].value.toString(),
             };
         }
         throw new Error("Invalid response from contract");
@@ -541,21 +539,21 @@ async function getPrimaryName({ address, network, }) {
     }).then((responseCV) => {
         if (responseCV.type === transactions_1.ClarityType.ResponseOk) {
             if (responseCV.value.type === transactions_1.ClarityType.Tuple) {
-                const nameCV = responseCV.value.data["name"];
-                const namespaceCV = responseCV.value.data["namespace"];
+                const nameCV = responseCV.value.value["name"];
+                const namespaceCV = responseCV.value.value["namespace"];
                 return {
-                    name: Buffer.from(nameCV.buffer).toString(),
-                    namespace: Buffer.from(namespaceCV.buffer).toString(),
+                    name: Buffer.from(nameCV.value, "hex").toString(),
+                    namespace: Buffer.from(namespaceCV.value, "hex").toString(),
                 };
             }
             else if (responseCV.value.type === transactions_1.ClarityType.OptionalSome) {
                 const innerValue = responseCV.value.value;
                 if (innerValue.type === transactions_1.ClarityType.Tuple) {
-                    const nameCV = innerValue.data["name"];
-                    const namespaceCV = innerValue.data["namespace"];
+                    const nameCV = innerValue.value["name"];
+                    const namespaceCV = innerValue.value["namespace"];
                     return {
-                        name: Buffer.from(nameCV.buffer).toString(),
-                        namespace: Buffer.from(namespaceCV.buffer).toString(),
+                        name: Buffer.from(nameCV.value, "hex").toString(),
+                        namespace: Buffer.from(namespaceCV.value, "hex").toString(),
                     };
                 }
             }
@@ -649,7 +647,7 @@ async function resolveNameZonefile({ fullyQualifiedName, network, }) {
         if (responseCV.type === transactions_1.ClarityType.ResponseOk) {
             if (responseCV.value.type === transactions_1.ClarityType.OptionalSome &&
                 responseCV.value.value.type === transactions_1.ClarityType.Buffer) {
-                const zonefileString = Buffer.from(responseCV.value.value.buffer).toString("utf8");
+                const zonefileString = Buffer.from(responseCV.value.value.value).toString("utf8");
                 return (0, utils_1.parseZonefile)(zonefileString);
             }
             if (responseCV.value.type === transactions_1.ClarityType.OptionalNone) {

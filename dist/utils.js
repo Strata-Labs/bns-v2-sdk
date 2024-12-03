@@ -24,7 +24,7 @@ function decodeFQN(fqdn) {
     };
 }
 function parsePriceFunction(data) {
-    const buckets = data["buckets"].list;
+    const buckets = data["buckets"].value;
     return {
         base: data["base"].value,
         coefficient: data["coeff"].value,
@@ -56,7 +56,7 @@ function asciiToUtf8(asciiCodes) {
 }
 function generateRandomAddress() {
     const randomPrivateKey = (0, transactions_1.makeRandomPrivKey)();
-    const privateKeyString = (0, transactions_1.privateKeyToString)(randomPrivateKey);
+    const privateKeyString = randomPrivateKey;
     const randomAddress = (0, transactions_1.getAddressFromPrivateKey)(privateKeyString);
     return randomAddress;
 }

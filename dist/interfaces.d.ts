@@ -9,26 +9,26 @@ export interface ContractCallPayload {
     network: NetworkType;
 }
 export interface PriceFunction {
-    base: bigint;
-    coefficient: bigint;
-    b1: bigint;
-    b2: bigint;
-    b3: bigint;
-    b4: bigint;
-    b5: bigint;
-    b6: bigint;
-    b7: bigint;
-    b8: bigint;
-    b9: bigint;
-    b10: bigint;
-    b11: bigint;
-    b12: bigint;
-    b13: bigint;
-    b14: bigint;
-    b15: bigint;
-    b16: bigint;
-    nonAlphaDiscount: bigint;
-    noVowelDiscount: bigint;
+    base: bigint | string | number;
+    coefficient: bigint | string | number;
+    b1: bigint | string | number;
+    b2: bigint | string | number;
+    b3: bigint | string | number;
+    b4: bigint | string | number;
+    b5: bigint | string | number;
+    b6: bigint | string | number;
+    b7: bigint | string | number;
+    b8: bigint | string | number;
+    b9: bigint | string | number;
+    b10: bigint | string | number;
+    b11: bigint | string | number;
+    b12: bigint | string | number;
+    b13: bigint | string | number;
+    b14: bigint | string | number;
+    b15: bigint | string | number;
+    b16: bigint | string | number;
+    nonAlphaDiscount: bigint | string | number;
+    noVowelDiscount: bigint | string | number;
 }
 export interface BaseTransactionOptions {
     network: NetworkType;
@@ -210,19 +210,19 @@ export interface NamespaceProperties {
         "manager-transferable": boolean;
         "manager-frozen": boolean;
         "namespace-import": string;
-        "revealed-at": bigint;
-        "launched-at": bigint | null;
-        lifetime: bigint;
+        "revealed-at": bigint | string | number;
+        "launched-at": bigint | string | number | null;
+        lifetime: bigint | string | number;
         "can-update-price-function": boolean;
         "price-function": PriceFunction;
     };
 }
 export interface NameInfo {
     owner: string;
-    registeredAt: bigint | null;
-    renewalHeight: bigint;
-    stxBurn: bigint;
-    importedAt: bigint | null;
+    registeredAt: bigint | string | number | null;
+    renewalHeight: bigint | string | number;
+    stxBurn: bigint | string | number;
+    importedAt: bigint | string | number | null;
     preorderedBy: string | null;
     hashedSaltedFqnPreorder: string | null;
 }

@@ -716,8 +716,8 @@ export async function getPrimaryName({
         const nameCV = responseCV.value.value["name"] as BufferCV;
         const namespaceCV = responseCV.value.value["namespace"] as BufferCV;
         return {
-          name: Buffer.from(nameCV.value).toString(),
-          namespace: Buffer.from(namespaceCV.value).toString(),
+          name: Buffer.from(nameCV.value, "hex").toString(),
+          namespace: Buffer.from(namespaceCV.value, "hex").toString(),
         };
       } else if (responseCV.value.type === ClarityType.OptionalSome) {
         const innerValue = responseCV.value.value;
@@ -725,8 +725,8 @@ export async function getPrimaryName({
           const nameCV = innerValue.value["name"] as BufferCV;
           const namespaceCV = innerValue.value["namespace"] as BufferCV;
           return {
-            name: Buffer.from(nameCV.value).toString(),
-            namespace: Buffer.from(namespaceCV.value).toString(),
+            name: Buffer.from(nameCV.value, "hex").toString(),
+            namespace: Buffer.from(namespaceCV.value, "hex").toString(),
           };
         }
       }

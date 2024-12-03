@@ -24,13 +24,13 @@ async function executeReadOnlyCall(options, contractAddress, contractName, netwo
             ? new network_1.StacksMainnet({ url })
             : new network_1.StacksTestnet({ url });
         try {
-            const response = await (0, transactions_1.callReadOnlyFunction)({
+            const response = await (0, transactions_1.fetchCallReadOnlyFunction)({
                 contractAddress,
                 contractName,
                 functionName: options.functionName,
                 functionArgs: options.functionArgs,
                 senderAddress: options.senderAddress,
-                network: currentNetwork,
+                network: networkType,
             });
             if (response.error) {
                 throw new Error(response.error);
