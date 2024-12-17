@@ -1,10 +1,29 @@
-import { PriceFunction, ZonefileData } from "./interfaces";
+import { BaseZonefileData, PriceFunction, ZonefileData } from "./interfaces";
 import { ClarityValue, UIntCV, ListCV } from "@stacks/transactions";
 import {
   makeRandomPrivKey,
   getAddressFromPrivateKey,
 } from "@stacks/transactions";
 import { CallbackFunction } from "./config";
+
+function isValidHttpsUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function hasJsonExtension(urlString: string): boolean {
+  return urlString.toLowerCase().endsWith(".json");
+}
+
+function isSafeDomain(urlString: string): boolean {
+  const url = new URL(urlString);
+  const forbiddenPatterns = [/^localhost$/, /^127\.0\.0\.1$/];
+  return !forbiddenPatterns.some((pattern) => pattern.test(url.hostname));
+}
 
 export function decodeFQN(fqdn: string): {
   name: string;
@@ -71,7 +90,7 @@ export function generateRandomAddress() {
 export function parseZonefile(zonefileString: string): ZonefileData {
   try {
     const parsed = JSON.parse(zonefileString);
-    return {
+    const baseData: BaseZonefileData = {
       owner: parsed.owner || "",
       general: parsed.general || "",
       twitter: parsed.twitter || "",
@@ -79,8 +98,19 @@ export function parseZonefile(zonefileString: string): ZonefileData {
       nostr: parsed.nostr || "",
       lightning: parsed.lightning || "",
       btc: parsed.btc || "",
-      subdomains: Array.isArray(parsed.subdomains) ? parsed.subdomains : [],
     };
+
+    if (parsed.externalSubdomainFile) {
+      return {
+        ...baseData,
+        externalSubdomainFile: parsed.externalSubdomainFile,
+      } as ZonefileData;
+    }
+
+    return {
+      ...baseData,
+      subdomains: parsed.subdomains || {},
+    } as ZonefileData;
   } catch (error) {
     console.error("Error parsing zonefile:", error);
     return {
@@ -91,17 +121,13 @@ export function parseZonefile(zonefileString: string): ZonefileData {
       nostr: "",
       lightning: "",
       btc: "",
-      subdomains: [],
-    };
+      subdomains: {},
+    } as ZonefileData;
   }
 }
 
-export function stringifyZonefile(zonefileData: ZonefileData): string {
-  return JSON.stringify(zonefileData);
-}
-
 export function createZonefileData(params: ZonefileData): ZonefileData {
-  return {
+  const baseData: BaseZonefileData = {
     owner: params.owner,
     general: params.general || "",
     twitter: params.twitter || "",
@@ -109,8 +135,31 @@ export function createZonefileData(params: ZonefileData): ZonefileData {
     nostr: params.nostr || "",
     lightning: params.lightning || "",
     btc: params.btc || "",
-    subdomains: params.subdomains || [],
   };
+
+  if ("externalSubdomainFile" in params && params.externalSubdomainFile) {
+    if (
+      !isValidHttpsUrl(params.externalSubdomainFile) ||
+      !hasJsonExtension(params.externalSubdomainFile) ||
+      !isSafeDomain(params.externalSubdomainFile)
+    ) {
+      throw new Error("Invalid externalSubdomainFile URL");
+    }
+
+    return {
+      ...baseData,
+      externalSubdomainFile: params.externalSubdomainFile,
+    } as ZonefileData;
+  }
+
+  return {
+    ...baseData,
+    subdomains: "subdomains" in params ? params.subdomains : {},
+  } as ZonefileData;
+}
+
+export function stringifyZonefile(zonefileData: ZonefileData): string {
+  return JSON.stringify(zonefileData);
 }
 
 export function addCallbacks<T>(
