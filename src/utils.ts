@@ -6,6 +6,27 @@ import {
 } from "@stacks/transactions";
 import { CallbackFunction } from "./config";
 
+function hasNoQueryOrFragment(urlString: string): boolean {
+  const url = new URL(urlString);
+  return !url.search && !url.hash;
+}
+
+function noUserInfo(urlString: string): boolean {
+  const url = new URL(urlString);
+  return !url.username && !url.password;
+}
+
+function isAllowedS3Domain(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    const s3DomainPattern =
+      /^[a-z0-9.-]+\.s3([.-][a-z0-9-]+)*\.amazonaws\.com$/i;
+    return s3DomainPattern.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function isValidHttpsUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
@@ -16,7 +37,8 @@ function isValidHttpsUrl(urlString: string): boolean {
 }
 
 function hasJsonExtension(urlString: string): boolean {
-  return urlString.toLowerCase().endsWith(".json");
+  const pathname = new URL(urlString).pathname.toLowerCase();
+  return pathname.endsWith(".json");
 }
 
 function isSafeDomain(urlString: string): boolean {
@@ -138,17 +160,21 @@ export function createZonefileData(params: ZonefileData): ZonefileData {
   };
 
   if ("externalSubdomainFile" in params && params.externalSubdomainFile) {
+    const fileUrl = params.externalSubdomainFile;
     if (
-      !isValidHttpsUrl(params.externalSubdomainFile) ||
-      !hasJsonExtension(params.externalSubdomainFile) ||
-      !isSafeDomain(params.externalSubdomainFile)
+      !isValidHttpsUrl(fileUrl) ||
+      !hasJsonExtension(fileUrl) ||
+      !isSafeDomain(fileUrl) ||
+      !isAllowedS3Domain(fileUrl) ||
+      !hasNoQueryOrFragment(fileUrl) ||
+      !noUserInfo(fileUrl)
     ) {
       throw new Error("Invalid externalSubdomainFile URL");
     }
 
     return {
       ...baseData,
-      externalSubdomainFile: params.externalSubdomainFile,
+      externalSubdomainFile: fileUrl,
     } as ZonefileData;
   }
 
