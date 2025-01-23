@@ -9,10 +9,11 @@ The official BNS V2 SDK for interacting with the Stacks Blockchain. This SDK pro
 3. [Features](#features)
 4. [Read-Only Functions](#read-only-functions)
 5. [Contract Calls](#contract-calls)
-6. [Network Configuration](#network-configuration)
-7. [Error Handling](#error-handling)
-8. [Support](#support)
-9. [License](#license)
+6. [Subdomain Management](#subdomain-management)
+7. [Network Configuration](#network-configuration)
+8. [Error Handling](#error-handling)
+9. [Support](#support)
+10. [License](#license)
 
 ## Installation
 
@@ -418,6 +419,118 @@ const importNamePayload = await buildImportNameTx({
   network: "mainnet",
 });
 ```
+
+## Subdomain Management
+
+The BNS SDK provides functionality to manage subdomains through zonefile manipulation. Subdomains can be stored either directly in the parent domain's zonefile (on-chain) or in an external S3 bucket.
+
+### Zonefile Structure
+
+```typescript
+interface ZonefileData {
+  owner: string;            // Parent domain owner address
+  general: string;          // General profile information
+  twitter: string;          // Twitter handle
+  url: string;             // Website URL
+  nostr: string;           // Nostr public key
+  lightning: string;        // Lightning address
+  btc: string;             // Bitcoin address
+  // Either subdomains OR externalSubdomainFile must be present
+  subdomains?: SubdomainMap;
+  externalSubdomainFile?: string;
+}
+
+interface SubdomainProperties {
+  owner: string;
+  general: string;
+  twitter: string;
+  url: string;
+  nostr: string;
+  lightning: string;
+  btc: string;
+}
+```
+
+### Direct Zonefile Storage (On-chain)
+
+```typescript
+import { buildUpdateZonefileTx } from '@stacks/bns';
+import type { ZonefileData, SubdomainMap } from '@stacks/bns';
+
+async function updateDirectSubdomains() {
+  const subdomains: SubdomainMap = {
+    "sub1": {
+      owner: "SP2ZNGJ85ENDY6QRHQ5P2D4FXQJ6INMT00GBGJ2QX",
+      general: "Profile information",
+      twitter: "@example",
+      url: "https://example.com",
+      nostr: "npub1...",
+      lightning: "lightning-address",
+      btc: "bc1..."
+    }
+  };
+
+  const zonefileData: ZonefileData = {
+    owner: "SP3FGQ8Z7JY9BWYZ5WM53E0M9NK7WHJF0691NZ159",
+    general: "Parent domain info",
+    twitter: "@parent",
+    url: "https://parent.com",
+    nostr: "npub_parent",
+    lightning: "parent-lightning",
+    btc: "bc1_parent",
+    subdomains: subdomains
+  };
+
+  const tx = await buildUpdateZonefileTx({
+    fullyQualifiedName: "mydomain.btc",
+    zonefileInputs: zonefileData,
+    senderAddress: "SP3FGQ8Z7JY9BWYZ5WM53E0M9NK7WHJF0691NZ159",
+    network: "mainnet"
+  });
+}
+```
+
+### External Storage (S3 Bucket)
+
+For managing large numbers of subdomains (>100), use external storage:
+
+```typescript
+async function updateExternalSubdomains() {
+  const zonefileData: ZonefileData = {
+    owner: "SP3FGQ8Z7JY9BWYZ5WM53E0M9NK7WHJF0691NZ159",
+    general: "Parent domain info",
+    twitter: "@parent",
+    url: "https://parent.com",
+    nostr: "npub_parent",
+    lightning: "parent-lightning",
+    btc: "bc1_parent",
+    externalSubdomainFile: "https://your-bucket.s3.amazonaws.com/subdomains.json"
+  };
+
+  const tx = await buildUpdateZonefileTx({
+    fullyQualifiedName: "mydomain.btc",
+    zonefileInputs: zonefileData,
+    senderAddress: "SP3FGQ8Z7JY9BWYZ5WM53E0M9NK7WHJF0691NZ159",
+    network: "mainnet"
+  });
+}
+```
+
+### Requirements and Limitations
+
+1. Only the parent domain owner can update the zonefile
+2. The sender address must match the owner address
+3. Choose either direct subdomains or external file storage
+4. External S3 files must:
+   - Use HTTPS protocol
+   - End with .json extension
+   - Be hosted on allowed S3 domains
+   - Not contain query parameters or credentials
+   - Contain valid JSON with a "subdomains" property
+5. Size limits:
+   - On-chain storage: Limited by BNS contract
+   - External S3 file: Maximum 50MB
+   - Recommended external storage for >100 subdomains
 
 ## Network Configuration
 
