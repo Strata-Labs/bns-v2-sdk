@@ -1,3 +1,7 @@
+export { configureSDK, getSDKConfig, SDKConfig } from "./config";
+export { BnsError, ErrorCode } from "./errors";
+export { debug } from "./debug";
+
 // Read-only functions
 export {
   canRegisterName,
@@ -81,8 +85,7 @@ export type {
   ResolveNameOptions,
   FetchUserOwnedNamesOptions,
   UpdateZonefileOptions,
-  Subdomain,
+  SubdomainMap,
+  SubdomainProperties,
   ZonefileData,
 } from "./interfaces";
-
-export { debug } from "./debug";

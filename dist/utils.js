@@ -5,10 +5,46 @@ exports.parsePriceFunction = parsePriceFunction;
 exports.asciiToUtf8 = asciiToUtf8;
 exports.generateRandomAddress = generateRandomAddress;
 exports.parseZonefile = parseZonefile;
-exports.stringifyZonefile = stringifyZonefile;
 exports.createZonefileData = createZonefileData;
+exports.stringifyZonefile = stringifyZonefile;
 exports.addCallbacks = addCallbacks;
 const transactions_1 = require("@stacks/transactions");
+function hasNoQueryOrFragment(urlString) {
+    const url = new URL(urlString);
+    return !url.search && !url.hash;
+}
+function noUserInfo(urlString) {
+    const url = new URL(urlString);
+    return !url.username && !url.password;
+}
+function isAllowedS3Domain(urlString) {
+    try {
+        const url = new URL(urlString);
+        const s3DomainPattern = /^[a-z0-9.-]+\.s3([.-][a-z0-9-]+)*\.amazonaws\.com$/i;
+        return s3DomainPattern.test(url.hostname);
+    }
+    catch {
+        return false;
+    }
+}
+function isValidHttpsUrl(urlString) {
+    try {
+        const url = new URL(urlString);
+        return url.protocol === "https:";
+    }
+    catch {
+        return false;
+    }
+}
+function hasJsonExtension(urlString) {
+    const pathname = new URL(urlString).pathname.toLowerCase();
+    return pathname.endsWith(".json");
+}
+function isSafeDomain(urlString) {
+    const url = new URL(urlString);
+    const forbiddenPatterns = [/^localhost$/, /^127\.0\.0\.1$/];
+    return !forbiddenPatterns.some((pattern) => pattern.test(url.hostname));
+}
 function decodeFQN(fqdn) {
     const nameParts = fqdn.split(".");
     if (nameParts.length > 2) {
@@ -63,7 +99,7 @@ function generateRandomAddress() {
 function parseZonefile(zonefileString) {
     try {
         const parsed = JSON.parse(zonefileString);
-        return {
+        const baseData = {
             owner: parsed.owner || "",
             general: parsed.general || "",
             twitter: parsed.twitter || "",
@@ -71,7 +107,16 @@ function parseZonefile(zonefileString) {
             nostr: parsed.nostr || "",
             lightning: parsed.lightning || "",
             btc: parsed.btc || "",
-            subdomains: Array.isArray(parsed.subdomains) ? parsed.subdomains : [],
+        };
+        if (parsed.externalSubdomainFile) {
+            return {
+                ...baseData,
+                externalSubdomainFile: parsed.externalSubdomainFile,
+            };
+        }
+        return {
+            ...baseData,
+            subdomains: parsed.subdomains || {},
         };
     }
     catch (error) {
@@ -84,15 +129,12 @@ function parseZonefile(zonefileString) {
             nostr: "",
             lightning: "",
             btc: "",
-            subdomains: [],
+            subdomains: {},
         };
     }
 }
-function stringifyZonefile(zonefileData) {
-    return JSON.stringify(zonefileData);
-}
 function createZonefileData(params) {
-    return {
+    const baseData = {
         owner: params.owner,
         general: params.general || "",
         twitter: params.twitter || "",
@@ -100,8 +142,29 @@ function createZonefileData(params) {
         nostr: params.nostr || "",
         lightning: params.lightning || "",
         btc: params.btc || "",
-        subdomains: params.subdomains || [],
     };
+    if ("externalSubdomainFile" in params && params.externalSubdomainFile) {
+        const fileUrl = params.externalSubdomainFile;
+        if (!isValidHttpsUrl(fileUrl) ||
+            !hasJsonExtension(fileUrl) ||
+            !isSafeDomain(fileUrl) ||
+            !isAllowedS3Domain(fileUrl) ||
+            !hasNoQueryOrFragment(fileUrl) ||
+            !noUserInfo(fileUrl)) {
+            throw new Error("Invalid externalSubdomainFile URL");
+        }
+        return {
+            ...baseData,
+            externalSubdomainFile: fileUrl,
+        };
+    }
+    return {
+        ...baseData,
+        subdomains: "subdomains" in params ? params.subdomains : {},
+    };
+}
+function stringifyZonefile(zonefileData) {
+    return JSON.stringify(zonefileData);
 }
 function addCallbacks(options, onFinish, onCancel) {
     return { ...options, onFinish, onCancel };

@@ -5,15 +5,48 @@ import {
   getAddressFromPrivateKey,
 } from "@stacks/transactions";
 import { CallbackFunction } from "./config";
+import { debug } from "./debug";
+
+// Define constants for reuse
+const DEFAULT_ZONEFILE_DATA: ZonefileData = {
+  owner: "",
+  general: "",
+  twitter: "",
+  url: "",
+  nostr: "",
+  lightning: "",
+  btc: "",
+  subdomains: {},
+};
+
+// Buffer optimization helpers
+export function stringToBuffer(str: string): Buffer {
+  return Buffer.from(str);
+}
+
+export function bufferToString(
+  buffer: Buffer,
+  encoding: BufferEncoding = "utf8"
+): string {
+  return buffer.toString(encoding);
+}
 
 function hasNoQueryOrFragment(urlString: string): boolean {
-  const url = new URL(urlString);
-  return !url.search && !url.hash;
+  try {
+    const url = new URL(urlString);
+    return !url.search && !url.hash;
+  } catch {
+    return false;
+  }
 }
 
 function noUserInfo(urlString: string): boolean {
-  const url = new URL(urlString);
-  return !url.username && !url.password;
+  try {
+    const url = new URL(urlString);
+    return !url.username && !url.password;
+  } catch {
+    return false;
+  }
 }
 
 function isAllowedS3Domain(urlString: string): boolean {
@@ -37,14 +70,22 @@ function isValidHttpsUrl(urlString: string): boolean {
 }
 
 function hasJsonExtension(urlString: string): boolean {
-  const pathname = new URL(urlString).pathname.toLowerCase();
-  return pathname.endsWith(".json");
+  try {
+    const pathname = new URL(urlString).pathname.toLowerCase();
+    return pathname.endsWith(".json");
+  } catch {
+    return false;
+  }
 }
 
 function isSafeDomain(urlString: string): boolean {
-  const url = new URL(urlString);
-  const forbiddenPatterns = [/^localhost$/, /^127\.0\.0\.1$/];
-  return !forbiddenPatterns.some((pattern) => pattern.test(url.hostname));
+  try {
+    const url = new URL(urlString);
+    const forbiddenPatterns = [/^localhost$/, /^127\.0\.0\.1$/];
+    return !forbiddenPatterns.some((pattern) => pattern.test(url.hostname));
+  } catch {
+    return false;
+  }
 }
 
 export function decodeFQN(fqdn: string): {
@@ -95,60 +136,85 @@ export function parsePriceFunction(data: {
 }
 
 export function asciiToUtf8(asciiCodes: string): string {
+  // Cache for frequently used ASCII codes
+  const codeCache: Record<string, string> = {};
+
   return asciiCodes
     .split(",")
-    .map((code) => String.fromCharCode(parseInt(code.trim())))
+    .map((code) => {
+      const trimmedCode = code.trim();
+      // Check cache first
+      if (!codeCache[trimmedCode]) {
+        codeCache[trimmedCode] = String.fromCharCode(parseInt(trimmedCode));
+      }
+      return codeCache[trimmedCode];
+    })
     .join("");
 }
 
-export function generateRandomAddress() {
+// Generate a random Stacks address for read-only calls
+let cachedRandomAddress: string | null = null;
+
+export function generateRandomAddress(): string {
+  // Reuse the same random address for better performance
+  if (cachedRandomAddress) {
+    return cachedRandomAddress;
+  }
+
   const randomPrivateKey = makeRandomPrivKey();
-  const privateKeyString = randomPrivateKey;
-  const randomAddress = getAddressFromPrivateKey(privateKeyString);
+  const randomAddress = getAddressFromPrivateKey(randomPrivateKey);
+  cachedRandomAddress = randomAddress;
 
   return randomAddress;
 }
 
 export function parseZonefile(zonefileString: string): ZonefileData {
+  const endTimer = debug.startTimer("parseZonefile");
+
   try {
+    // Only parse once
     const parsed = JSON.parse(zonefileString);
+
+    // Destructure with defaults for efficiency
+    const {
+      owner = "",
+      general = "",
+      twitter = "",
+      url = "",
+      nostr = "",
+      lightning = "",
+      btc = "",
+    } = parsed;
+
     const baseData: BaseZonefileData = {
-      owner: parsed.owner || "",
-      general: parsed.general || "",
-      twitter: parsed.twitter || "",
-      url: parsed.url || "",
-      nostr: parsed.nostr || "",
-      lightning: parsed.lightning || "",
-      btc: parsed.btc || "",
+      owner,
+      general,
+      twitter,
+      url,
+      nostr,
+      lightning,
+      btc,
     };
 
-    if (parsed.externalSubdomainFile) {
-      return {
-        ...baseData,
-        externalSubdomainFile: parsed.externalSubdomainFile,
-      } as ZonefileData;
-    }
+    const result = parsed.externalSubdomainFile
+      ? ({
+          ...baseData,
+          externalSubdomainFile: parsed.externalSubdomainFile,
+        } as ZonefileData)
+      : ({ ...baseData, subdomains: parsed.subdomains || {} } as ZonefileData);
 
-    return {
-      ...baseData,
-      subdomains: parsed.subdomains || {},
-    } as ZonefileData;
+    endTimer();
+    return result;
   } catch (error) {
-    console.error("Error parsing zonefile:", error);
-    return {
-      owner: "",
-      general: "",
-      twitter: "",
-      url: "",
-      nostr: "",
-      lightning: "",
-      btc: "",
-      subdomains: {},
-    } as ZonefileData;
+    endTimer();
+    debug.error("Error parsing zonefile:", error);
+    return { ...DEFAULT_ZONEFILE_DATA };
   }
 }
 
 export function createZonefileData(params: ZonefileData): ZonefileData {
+  const endTimer = debug.startTimer("createZonefileData");
+
   const baseData: BaseZonefileData = {
     owner: params.owner,
     general: params.general || "",
@@ -161,27 +227,37 @@ export function createZonefileData(params: ZonefileData): ZonefileData {
 
   if ("externalSubdomainFile" in params && params.externalSubdomainFile) {
     const fileUrl = params.externalSubdomainFile;
-    if (
-      !isValidHttpsUrl(fileUrl) ||
-      !hasJsonExtension(fileUrl) ||
-      !isSafeDomain(fileUrl) ||
-      !isAllowedS3Domain(fileUrl) ||
-      !hasNoQueryOrFragment(fileUrl) ||
-      !noUserInfo(fileUrl)
-    ) {
+
+    // Validate URL in a single pass
+    const isValidUrl =
+      isValidHttpsUrl(fileUrl) &&
+      hasJsonExtension(fileUrl) &&
+      isSafeDomain(fileUrl) &&
+      isAllowedS3Domain(fileUrl) &&
+      hasNoQueryOrFragment(fileUrl) &&
+      noUserInfo(fileUrl);
+
+    if (!isValidUrl) {
+      endTimer();
       throw new Error("Invalid externalSubdomainFile URL");
     }
 
-    return {
+    const result = {
       ...baseData,
       externalSubdomainFile: fileUrl,
     } as ZonefileData;
+
+    endTimer();
+    return result;
   }
 
-  return {
+  const result = {
     ...baseData,
     subdomains: "subdomains" in params ? params.subdomains : {},
   } as ZonefileData;
+
+  endTimer();
+  return result;
 }
 
 export function stringifyZonefile(zonefileData: ZonefileData): string {
@@ -194,4 +270,26 @@ export function addCallbacks<T>(
   onCancel?: CallbackFunction
 ): T & { onFinish?: CallbackFunction; onCancel?: CallbackFunction } {
   return { ...options, onFinish, onCancel };
+}
+
+// Memoize simple string operations
+type MemoizeFunc<T extends (...args: any[]) => any> = (
+  ...args: Parameters<T>
+) => ReturnType<T>;
+
+export function memoize<T extends (...args: any[]) => any>(
+  fn: T
+): MemoizeFunc<T> {
+  const cache = new Map<string, ReturnType<T>>();
+
+  return (...args: Parameters<T>): ReturnType<T> => {
+    const key = JSON.stringify(args);
+    if (cache.has(key)) {
+      return cache.get(key)!;
+    }
+
+    const result = fn(...args);
+    cache.set(key, result);
+    return result;
+  };
 }

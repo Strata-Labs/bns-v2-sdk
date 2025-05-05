@@ -127,14 +127,7 @@ export interface UpdateZonefileOptions extends BaseTransactionOptions {
     fullyQualifiedName: string;
     zonefileInputs: ZonefileData | undefined;
 }
-export interface Subdomain {
-    name: string;
-    sequence: number;
-    owner: string;
-    signature: string;
-    text: string;
-}
-export interface ZonefileData {
+export interface SubdomainProperties {
     owner: string;
     general: string;
     twitter: string;
@@ -142,8 +135,26 @@ export interface ZonefileData {
     nostr: string;
     lightning: string;
     btc: string;
-    subdomains: Subdomain[];
 }
+export interface SubdomainMap {
+    [name: string]: SubdomainProperties;
+}
+export interface BaseZonefileData {
+    owner: string;
+    general: string;
+    twitter: string;
+    url: string;
+    nostr: string;
+    lightning: string;
+    btc: string;
+}
+export type ZonefileData = BaseZonefileData & ({
+    externalSubdomainFile: string;
+    subdomains?: never;
+} | {
+    externalSubdomainFile?: never;
+    subdomains: SubdomainMap;
+});
 export interface CanRegisterNameOptions {
     fullyQualifiedName: string;
     network: NetworkType;
