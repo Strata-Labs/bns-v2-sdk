@@ -581,13 +581,11 @@ export async function buildPreviousRegisterNameTx({
     throw new Error("Cannot register a subdomain using registerName()");
   }
 
-  // Get the ID for the name
   const nameId = await getIdFromBns({
     fullyQualifiedName,
     network,
   });
 
-  // Get the current owner of the name
   const currentOwner = await getOwner({ fullyQualifiedName, network });
 
   if (!currentOwner) {
@@ -782,7 +780,6 @@ export async function buildUpdateZonefileFormattedTx({
   const bnsFunctionName = "update-zonefile";
   const { name, namespace } = decodeFQN(fullyQualifiedName);
 
-  // Validate and format the zonefile data
   const formattedZonefileData = createFormattedZonefileData(zonefileData);
 
   let zonefileCV;

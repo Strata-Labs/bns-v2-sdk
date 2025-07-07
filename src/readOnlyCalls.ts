@@ -51,7 +51,6 @@ import { debug } from "./debug";
 
 const API_BASE_URL = "https://api.bnsv2.com";
 
-// Helper function for API calls with network support
 const callApi = async (endpoint: string, network: string) => {
   try {
     const networkPrefix = network === "testnet" ? "/testnet" : "";
@@ -975,7 +974,6 @@ export async function getZonefileProfile({
         ).toString("utf8");
         try {
           const parsed = JSON.parse(zonefileString);
-          // Validate that it matches NewZonefileData format
           return createFormattedZonefileData(parsed);
         } catch (error) {
           debug.error("Failed to parse zonefile as profile format:", error);

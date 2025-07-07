@@ -255,7 +255,6 @@ function validateMetaEntry(meta: MetaEntry): boolean {
 }
 
 function validateSubdomainEntry(subdomain: SubdomainProperties): boolean {
-  // Owner is required
   if (
     !subdomain.owner ||
     typeof subdomain.owner !== "string" ||
@@ -264,7 +263,6 @@ function validateSubdomainEntry(subdomain: SubdomainProperties): boolean {
     return false;
   }
 
-  // Validate optional fields
   if (
     subdomain.pfp &&
     (!isValidUrl(subdomain.pfp) || !isValidImageUrl(subdomain.pfp))

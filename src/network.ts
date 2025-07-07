@@ -2,7 +2,6 @@ import { NetworkType } from "./config";
 import { StacksMainnet, StacksTestnet } from "@stacks/network";
 import { debug } from "./debug";
 
-// Update the interface to make testnetFallbackUrl optional
 interface NetworkConfig {
   testnetFallbackUrl?: string;
 }
