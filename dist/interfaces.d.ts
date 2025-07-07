@@ -127,14 +127,26 @@ export interface UpdateZonefileOptions extends BaseTransactionOptions {
     fullyQualifiedName: string;
     zonefileInputs: ZonefileData | undefined;
 }
-export interface Subdomain {
-    name: string;
-    sequence: number;
+export interface SubdomainProperties {
     owner: string;
-    signature: string;
-    text: string;
+    general?: string;
+    twitter?: string;
+    url?: string;
+    nostr?: string;
+    lightning?: string;
+    btc?: string;
+    bio?: string;
+    website?: string;
+    pfp?: string;
+    name?: string;
+    location?: string;
+    social?: SocialEntry[];
+    addresses?: AddressEntry[];
 }
-export interface ZonefileData {
+export interface SubdomainMap {
+    [name: string]: SubdomainProperties;
+}
+export interface BaseZonefileData {
     owner: string;
     general: string;
     twitter: string;
@@ -142,8 +154,14 @@ export interface ZonefileData {
     nostr: string;
     lightning: string;
     btc: string;
-    subdomains: Subdomain[];
 }
+export type ZonefileData = BaseZonefileData & ({
+    externalSubdomainFile: string;
+    subdomains?: never;
+} | {
+    externalSubdomainFile?: never;
+    subdomains: SubdomainMap;
+});
 export interface CanRegisterNameOptions {
     fullyQualifiedName: string;
     network: NetworkType;
@@ -225,4 +243,40 @@ export interface NameInfo {
     importedAt: bigint | string | number | null;
     preorderedBy: string | null;
     hashedSaltedFqnPreorder: string | null;
+}
+export interface SocialEntry {
+    platform: string;
+    username: string;
+}
+export interface AddressEntry {
+    network: string;
+    address: string;
+    type: string;
+}
+export interface MetaEntry {
+    name: string;
+    value: string;
+}
+export type SubdomainEntry = SubdomainProperties;
+export interface NewZonefileData {
+    owner: string;
+    btc?: string;
+    bio?: string;
+    website?: string;
+    pfp?: string;
+    name?: string;
+    location?: string;
+    social?: SocialEntry[];
+    addresses?: AddressEntry[];
+    meta?: MetaEntry[];
+    subdomains?: SubdomainMap[];
+    externalSubdomainsFile?: string;
+}
+export interface FlexibleUpdateZonefileOptions extends BaseTransactionOptions {
+    fullyQualifiedName: string;
+    zonefileData: any;
+}
+export interface FormattedUpdateZonefileOptions extends BaseTransactionOptions {
+    fullyQualifiedName: string;
+    zonefileData: NewZonefileData;
 }

@@ -17,9 +17,18 @@ import {
   ZonefileContractName,
   getZonefileContractAddress,
 } from "./config";
-import { ContractCallPayload } from "./interfaces";
+import {
+  ContractCallPayload,
+  FlexibleUpdateZonefileOptions,
+  FormattedUpdateZonefileOptions,
+} from "./interfaces";
 import * as Types from "./interfaces";
-import { decodeFQN, createZonefileData, stringifyZonefile } from "./utils";
+import {
+  decodeFQN,
+  createZonefileData,
+  stringifyZonefile,
+  createFormattedZonefileData,
+} from "./utils";
 import {
   getIdFromBns,
   getNamespaceProperties,
@@ -732,3 +741,68 @@ const defaultPriceFunction: Types.PriceFunction = {
   nonAlphaDiscount: 1n,
   noVowelDiscount: 1n,
 };
+
+export async function buildUpdateZonefileFlexibleTx({
+  fullyQualifiedName,
+  zonefileData,
+  senderAddress,
+  network,
+}: FlexibleUpdateZonefileOptions): Promise<ContractCallPayload> {
+  const bnsFunctionName = "update-zonefile";
+  const { name, namespace } = decodeFQN(fullyQualifiedName);
+
+  let zonefileCV;
+  if (zonefileData) {
+    const zonefileString = JSON.stringify(zonefileData);
+    zonefileCV = someCV(bufferCVFromString(zonefileString));
+  } else {
+    zonefileCV = noneCV();
+  }
+
+  return {
+    contractAddress: getZonefileContractAddress(network),
+    contractName: ZonefileContractName,
+    functionName: bnsFunctionName,
+    functionArgs: [
+      bufferCVFromString(name),
+      bufferCVFromString(namespace),
+      zonefileCV,
+    ],
+    postConditions: [],
+    network,
+  };
+}
+
+export async function buildUpdateZonefileFormattedTx({
+  fullyQualifiedName,
+  zonefileData,
+  senderAddress,
+  network,
+}: FormattedUpdateZonefileOptions): Promise<ContractCallPayload> {
+  const bnsFunctionName = "update-zonefile";
+  const { name, namespace } = decodeFQN(fullyQualifiedName);
+
+  // Validate and format the zonefile data
+  const formattedZonefileData = createFormattedZonefileData(zonefileData);
+
+  let zonefileCV;
+  if (formattedZonefileData) {
+    const zonefileString = JSON.stringify(formattedZonefileData);
+    zonefileCV = someCV(bufferCVFromString(zonefileString));
+  } else {
+    zonefileCV = noneCV();
+  }
+
+  return {
+    contractAddress: getZonefileContractAddress(network),
+    contractName: ZonefileContractName,
+    functionName: bnsFunctionName,
+    functionArgs: [
+      bufferCVFromString(name),
+      bufferCVFromString(namespace),
+      zonefileCV,
+    ],
+    postConditions: [],
+    network,
+  };
+}

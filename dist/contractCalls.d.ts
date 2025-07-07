@@ -1,4 +1,4 @@
-import { ContractCallPayload } from "./interfaces";
+import { ContractCallPayload, FlexibleUpdateZonefileOptions, FormattedUpdateZonefileOptions } from "./interfaces";
 import * as Types from "./interfaces";
 export declare function buildTransferNameTx({ fullyQualifiedName, newOwnerAddress, senderAddress, network, }: Types.TransferNameOptions): Promise<ContractCallPayload>;
 export declare function buildListInUstxTx({ id, price, commissionTraitAddress, commissionTraitName, senderAddress, network, }: Types.ListInUstxOptions): Promise<ContractCallPayload>;
@@ -20,3 +20,5 @@ export declare function buildPreviousRegisterNameTx({ fullyQualifiedName, salt, 
 export declare function buildClaimPreorderTx({ fullyQualifiedName, salt, stxToClaim, senderAddress, network, }: Types.ClaimPreorderOptions): Promise<ContractCallPayload>;
 export declare function buildRenewNameTx({ fullyQualifiedName, stxToBurn, senderAddress, network, }: Types.RenewNameOptions): Promise<ContractCallPayload>;
 export declare function buildUpdateZonefileTx({ fullyQualifiedName, zonefileInputs, senderAddress, network, }: Types.UpdateZonefileOptions): Promise<ContractCallPayload>;
+export declare function buildUpdateZonefileFlexibleTx({ fullyQualifiedName, zonefileData, senderAddress, network, }: FlexibleUpdateZonefileOptions): Promise<ContractCallPayload>;
+export declare function buildUpdateZonefileFormattedTx({ fullyQualifiedName, zonefileData, senderAddress, network, }: FormattedUpdateZonefileOptions): Promise<ContractCallPayload>;

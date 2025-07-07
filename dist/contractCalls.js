@@ -20,6 +20,8 @@ exports.buildPreviousRegisterNameTx = buildPreviousRegisterNameTx;
 exports.buildClaimPreorderTx = buildClaimPreorderTx;
 exports.buildRenewNameTx = buildRenewNameTx;
 exports.buildUpdateZonefileTx = buildUpdateZonefileTx;
+exports.buildUpdateZonefileFlexibleTx = buildUpdateZonefileFlexibleTx;
+exports.buildUpdateZonefileFormattedTx = buildUpdateZonefileFormattedTx;
 const common_1 = require("@stacks/common");
 const transactions_1 = require("@stacks/transactions");
 const config_1 = require("./config");
@@ -516,3 +518,53 @@ const defaultPriceFunction = {
     nonAlphaDiscount: 1n,
     noVowelDiscount: 1n,
 };
+async function buildUpdateZonefileFlexibleTx({ fullyQualifiedName, zonefileData, senderAddress, network, }) {
+    const bnsFunctionName = "update-zonefile";
+    const { name, namespace } = (0, utils_1.decodeFQN)(fullyQualifiedName);
+    let zonefileCV;
+    if (zonefileData) {
+        const zonefileString = JSON.stringify(zonefileData);
+        zonefileCV = (0, transactions_1.someCV)((0, transactions_1.bufferCVFromString)(zonefileString));
+    }
+    else {
+        zonefileCV = (0, transactions_1.noneCV)();
+    }
+    return {
+        contractAddress: (0, config_1.getZonefileContractAddress)(network),
+        contractName: config_1.ZonefileContractName,
+        functionName: bnsFunctionName,
+        functionArgs: [
+            (0, transactions_1.bufferCVFromString)(name),
+            (0, transactions_1.bufferCVFromString)(namespace),
+            zonefileCV,
+        ],
+        postConditions: [],
+        network,
+    };
+}
+async function buildUpdateZonefileFormattedTx({ fullyQualifiedName, zonefileData, senderAddress, network, }) {
+    const bnsFunctionName = "update-zonefile";
+    const { name, namespace } = (0, utils_1.decodeFQN)(fullyQualifiedName);
+    // Validate and format the zonefile data
+    const formattedZonefileData = (0, utils_1.createFormattedZonefileData)(zonefileData);
+    let zonefileCV;
+    if (formattedZonefileData) {
+        const zonefileString = JSON.stringify(formattedZonefileData);
+        zonefileCV = (0, transactions_1.someCV)((0, transactions_1.bufferCVFromString)(zonefileString));
+    }
+    else {
+        zonefileCV = (0, transactions_1.noneCV)();
+    }
+    return {
+        contractAddress: (0, config_1.getZonefileContractAddress)(network),
+        contractName: config_1.ZonefileContractName,
+        functionName: bnsFunctionName,
+        functionArgs: [
+            (0, transactions_1.bufferCVFromString)(name),
+            (0, transactions_1.bufferCVFromString)(namespace),
+            zonefileCV,
+        ],
+        postConditions: [],
+        network,
+    };
+}

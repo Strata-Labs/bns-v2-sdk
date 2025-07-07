@@ -1,4 +1,14 @@
-import { BaseZonefileData, PriceFunction, ZonefileData } from "./interfaces";
+import {
+  AddressEntry,
+  BaseZonefileData,
+  MetaEntry,
+  NewZonefileData,
+  PriceFunction,
+  SocialEntry,
+  SubdomainEntry,
+  SubdomainProperties,
+  ZonefileData,
+} from "./interfaces";
 import { ClarityValue, UIntCV, ListCV } from "@stacks/transactions";
 import {
   makeRandomPrivKey,
@@ -194,4 +204,213 @@ export function addCallbacks<T>(
   onCancel?: CallbackFunction
 ): T & { onFinish?: CallbackFunction; onCancel?: CallbackFunction } {
   return { ...options, onFinish, onCancel };
+}
+
+function isValidImageUrl(url: string): boolean {
+  try {
+    const validExtensions = [".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"];
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname.toLowerCase();
+    return validExtensions.some((ext) => pathname.endsWith(ext));
+  } catch {
+    return false;
+  }
+}
+
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function validateSocialEntry(social: SocialEntry): boolean {
+  return (
+    typeof social.platform === "string" &&
+    typeof social.username === "string" &&
+    social.platform.trim() !== "" &&
+    social.username.trim() !== ""
+  );
+}
+
+function validateAddressEntry(address: AddressEntry): boolean {
+  return (
+    typeof address.network === "string" &&
+    typeof address.address === "string" &&
+    typeof address.type === "string" &&
+    address.network.trim() !== "" &&
+    address.address.trim() !== "" &&
+    address.type.trim() !== ""
+  );
+}
+
+function validateMetaEntry(meta: MetaEntry): boolean {
+  return (
+    typeof meta.name === "string" &&
+    typeof meta.value === "string" &&
+    meta.name.trim() !== ""
+  );
+}
+
+function validateSubdomainEntry(subdomain: SubdomainProperties): boolean {
+  // Owner is required
+  if (
+    !subdomain.owner ||
+    typeof subdomain.owner !== "string" ||
+    subdomain.owner.trim() === ""
+  ) {
+    return false;
+  }
+
+  // Validate optional fields
+  if (
+    subdomain.pfp &&
+    (!isValidUrl(subdomain.pfp) || !isValidImageUrl(subdomain.pfp))
+  ) {
+    return false;
+  }
+
+  if (subdomain.website && !isValidUrl(subdomain.website)) {
+    return false;
+  }
+
+  if (subdomain.social && !Array.isArray(subdomain.social)) {
+    return false;
+  }
+
+  if (subdomain.social) {
+    for (const social of subdomain.social) {
+      if (!validateSocialEntry(social)) {
+        return false;
+      }
+    }
+  }
+
+  if (subdomain.addresses && !Array.isArray(subdomain.addresses)) {
+    return false;
+  }
+
+  if (subdomain.addresses) {
+    for (const address of subdomain.addresses) {
+      if (!validateAddressEntry(address)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+export function createFormattedZonefileData(
+  params: NewZonefileData
+): NewZonefileData {
+  if (
+    !params.owner ||
+    typeof params.owner !== "string" ||
+    params.owner.trim() === ""
+  ) {
+    throw new Error("Owner field is required and must be a non-empty string");
+  }
+
+  if (params.pfp && (!isValidUrl(params.pfp) || !isValidImageUrl(params.pfp))) {
+    throw new Error(
+      "pfp must be a valid image URL with supported format (.png, .jpg, .jpeg, .gif, .svg, .webp)"
+    );
+  }
+
+  if (params.website && !isValidUrl(params.website)) {
+    throw new Error("website must be a valid URL");
+  }
+
+  if (params.social) {
+    if (!Array.isArray(params.social)) {
+      throw new Error("social must be an array");
+    }
+    for (const social of params.social) {
+      if (!validateSocialEntry(social)) {
+        throw new Error(
+          "Invalid social entry: platform and username are required"
+        );
+      }
+    }
+  }
+
+  if (params.addresses) {
+    if (!Array.isArray(params.addresses)) {
+      throw new Error("addresses must be an array");
+    }
+    for (const address of params.addresses) {
+      if (!validateAddressEntry(address)) {
+        throw new Error(
+          "Invalid address entry: network, address, and type are required"
+        );
+      }
+    }
+  }
+
+  if (params.meta) {
+    if (!Array.isArray(params.meta)) {
+      throw new Error("meta must be an array");
+    }
+    for (const meta of params.meta) {
+      if (!validateMetaEntry(meta)) {
+        throw new Error("Invalid meta entry: name and value are required");
+      }
+    }
+  }
+
+  if (params.subdomains) {
+    if (!Array.isArray(params.subdomains)) {
+      throw new Error("subdomains must be an array");
+    }
+    for (const subdomainMap of params.subdomains) {
+      if (typeof subdomainMap !== "object" || subdomainMap === null) {
+        throw new Error("Each subdomain entry must be an object");
+      }
+      for (const [subdomainName, subdomainData] of Object.entries(
+        subdomainMap
+      )) {
+        if (!validateSubdomainEntry(subdomainData as SubdomainEntry)) {
+          throw new Error(`Invalid subdomain entry for ${subdomainName}`);
+        }
+      }
+    }
+  }
+
+  if (params.externalSubdomainsFile) {
+    const fileUrl = params.externalSubdomainsFile;
+    if (
+      !isValidHttpsUrl(fileUrl) ||
+      !hasJsonExtension(fileUrl) ||
+      !isSafeDomain(fileUrl) ||
+      !hasNoQueryOrFragment(fileUrl) ||
+      !noUserInfo(fileUrl)
+    ) {
+      throw new Error("Invalid externalSubdomainsFile URL");
+    }
+  }
+
+  const formattedData: NewZonefileData = {
+    owner: params.owner,
+  };
+
+  if (params.btc) formattedData.btc = params.btc;
+  if (params.bio) formattedData.bio = params.bio;
+  if (params.website) formattedData.website = params.website;
+  if (params.pfp) formattedData.pfp = params.pfp;
+  if (params.name) formattedData.name = params.name;
+  if (params.location) formattedData.location = params.location;
+  if (params.social && params.social.length > 0)
+    formattedData.social = params.social;
+  if (params.addresses && params.addresses.length > 0)
+    formattedData.addresses = params.addresses;
+  if (params.meta && params.meta.length > 0) formattedData.meta = params.meta;
+  if (params.subdomains && params.subdomains.length > 0)
+    formattedData.subdomains = params.subdomains;
+  if (params.externalSubdomainsFile)
+    formattedData.externalSubdomainsFile = params.externalSubdomainsFile;
+
+  return formattedData;
 }

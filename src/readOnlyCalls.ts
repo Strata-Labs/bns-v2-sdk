@@ -18,6 +18,7 @@ import {
 import axios from "axios";
 import {
   asciiToUtf8,
+  createFormattedZonefileData,
   decodeFQN,
   generateRandomAddress,
   parsePriceFunction,
@@ -43,6 +44,7 @@ import {
   ResolveNameOptions,
   ZonefileData,
   GetOwnerByIdOptions,
+  NewZonefileData,
 } from "./interfaces";
 import { bnsV2ReadOnlyCall, zonefileReadOnlyCall } from "./callersHelper";
 import { debug } from "./debug";
@@ -870,6 +872,115 @@ export async function resolveNameZonefile({
           responseCV.value.value.value
         ).toString("utf8");
         return parseZonefile(zonefileString);
+      }
+      if (responseCV.value.type === ClarityType.OptionalNone) {
+        return null;
+      }
+    }
+
+    throw new Error("Invalid response from contract");
+  }
+}
+
+export async function getZonefileRaw({
+  fullyQualifiedName,
+  network,
+}: ResolveNameOptions): Promise<any | null> {
+  try {
+    const response = await callApi(
+      `/zonefile/${fullyQualifiedName}/raw`,
+      network
+    );
+    return response.zonefile || null;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+
+    debug.error("API call failed, falling back to contract call:", error);
+
+    const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+    if (subdomain) {
+      throw new Error("Cannot get raw zonefile for a subdomain");
+    }
+
+    const randomAddress = generateRandomAddress();
+    const responseCV = await zonefileReadOnlyCall({
+      functionName: "resolve-name",
+      senderAddress: randomAddress,
+      functionArgs: [bufferCVFromString(name), bufferCVFromString(namespace)],
+      network,
+    });
+
+    if (responseCV.type === ClarityType.ResponseOk) {
+      if (
+        responseCV.value.type === ClarityType.OptionalSome &&
+        responseCV.value.value.type === ClarityType.Buffer
+      ) {
+        const zonefileString = Buffer.from(
+          responseCV.value.value.value
+        ).toString("utf8");
+        try {
+          return JSON.parse(zonefileString);
+        } catch {
+          return zonefileString;
+        }
+      }
+      if (responseCV.value.type === ClarityType.OptionalNone) {
+        return null;
+      }
+    }
+
+    throw new Error("Invalid response from contract");
+  }
+}
+
+export async function getZonefileProfile({
+  fullyQualifiedName,
+  network,
+}: ResolveNameOptions): Promise<NewZonefileData | null> {
+  try {
+    const response = await callApi(
+      `/zonefile/${fullyQualifiedName}/profile`,
+      network
+    );
+    return response.profile || null;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+
+    debug.error("API call failed, falling back to contract call:", error);
+
+    const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
+    if (subdomain) {
+      throw new Error("Cannot get profile zonefile for a subdomain");
+    }
+
+    const randomAddress = generateRandomAddress();
+    const responseCV = await zonefileReadOnlyCall({
+      functionName: "resolve-name",
+      senderAddress: randomAddress,
+      functionArgs: [bufferCVFromString(name), bufferCVFromString(namespace)],
+      network,
+    });
+
+    if (responseCV.type === ClarityType.ResponseOk) {
+      if (
+        responseCV.value.type === ClarityType.OptionalSome &&
+        responseCV.value.value.type === ClarityType.Buffer
+      ) {
+        const zonefileString = Buffer.from(
+          responseCV.value.value.value
+        ).toString("utf8");
+        try {
+          const parsed = JSON.parse(zonefileString);
+          // Validate that it matches NewZonefileData format
+          return createFormattedZonefileData(parsed);
+        } catch (error) {
+          debug.error("Failed to parse zonefile as profile format:", error);
+          return null;
+        }
       }
       if (responseCV.value.type === ClarityType.OptionalNone) {
         return null;

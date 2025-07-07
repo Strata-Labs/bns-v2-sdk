@@ -16,6 +16,8 @@ export {
   fetchUserOwnedNames,
   resolveNameZonefile,
   getIdFromBns,
+  getZonefileRaw,
+  getZonefileProfile,
 } from "./readOnlyCalls";
 
 // Contract interaction functions
@@ -40,6 +42,8 @@ export {
   buildClaimPreorderTx,
   buildRenewNameTx,
   buildUpdateZonefileTx,
+  buildUpdateZonefileFlexibleTx,
+  buildUpdateZonefileFormattedTx,
 } from "./contractCalls";
 
 // Types
@@ -81,8 +85,15 @@ export type {
   ResolveNameOptions,
   FetchUserOwnedNamesOptions,
   UpdateZonefileOptions,
-  Subdomain,
+  SubdomainMap,
   ZonefileData,
+  FlexibleUpdateZonefileOptions,
+  FormattedUpdateZonefileOptions,
+  NewZonefileData,
+  SocialEntry,
+  AddressEntry,
+  MetaEntry,
+  SubdomainEntry,
 } from "./interfaces";
 
 export { debug } from "./debug";
