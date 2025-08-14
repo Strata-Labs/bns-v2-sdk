@@ -30,8 +30,10 @@ import {
   createFormattedZonefileData,
 } from "./utils";
 import {
+  getBnsFromId,
   getIdFromBns,
   getNamespaceProperties,
+  getNameTradingStatus,
   getOwner,
   getOwnerById,
 } from "./readOnlyCalls";
@@ -94,6 +96,24 @@ export async function buildListInUstxTx({
 }: Types.ListInUstxOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "list-in-ustx";
 
+  // Check if name can be traded
+  const nameInfo = await getBnsFromId({ id: BigInt(id), network });
+  if (!nameInfo) {
+    throw new Error("Name not found");
+  }
+
+  const fullyQualifiedName = `${nameInfo.name}.${nameInfo.namespace}`;
+  const tradingStatus = await getNameTradingStatus({
+    fullyQualifiedName,
+    network,
+  });
+
+  if (!tradingStatus.canTrade) {
+    throw new Error(
+      `Name ${fullyQualifiedName} ${tradingStatus.reason || "cannot be traded"}`
+    );
+  }
+
   return {
     contractAddress: getBnsContractAddress(network),
     contractName: BnsContractName,
@@ -134,6 +154,25 @@ export async function buildBuyInUstxTx({
   network,
 }: Types.BuyInUstxOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "buy-in-ustx";
+
+  // Check if name can be traded
+  const nameInfo = await getBnsFromId({ id: BigInt(id), network });
+  if (!nameInfo) {
+    throw new Error("Name not found");
+  }
+
+  const fullyQualifiedName = `${nameInfo.name}.${nameInfo.namespace}`;
+  const tradingStatus = await getNameTradingStatus({
+    fullyQualifiedName,
+    network,
+  });
+
+  if (!tradingStatus.canTrade) {
+    throw new Error(
+      `Name ${fullyQualifiedName} ${tradingStatus.reason || "cannot be traded"}`
+    );
+  }
+
   const currentOwner = await getOwnerById({ id, network });
 
   if (!currentOwner) {

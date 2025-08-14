@@ -65,6 +65,53 @@ const callApi = async (endpoint: string, network: string) => {
   }
 };
 
+export async function getNameTradingStatus({
+  fullyQualifiedName,
+  network,
+}: CanRegisterNameOptions): Promise<{
+  canTrade: boolean;
+  isValid: boolean;
+  isRevoked: boolean;
+  reason?: string;
+}> {
+  try {
+    const response = await callApi(`/names/${fullyQualifiedName}`, network);
+    const data = response.data;
+
+    const isRevoked = data.revoked === true;
+    const isValid = data.is_valid === true;
+    const canTrade = isValid && !isRevoked;
+
+    let reason: string | undefined;
+    if (isRevoked) {
+      reason = "Name is revoked";
+    } else if (!isValid) {
+      reason = "Name has expired";
+    }
+
+    return {
+      canTrade,
+      isValid,
+      isRevoked,
+      reason,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return {
+        canTrade: false,
+        isValid: false,
+        isRevoked: false,
+        reason: "Name not found",
+      };
+    }
+
+    debug.error("API call failed:", error);
+    throw new Error(
+      `Unable to verify trading status for ${fullyQualifiedName}`
+    );
+  }
+}
+
 export async function getLastTokenId({
   network,
 }: GetLastTokenIdOptions): Promise<bigint | string | number> {

@@ -1,4 +1,4 @@
-import { CanNamespaceBeRegisteredOptions, CanRegisterNameOptions, CanResolveNameOptions, FetchUserOwnedNamesOptions, GetBnsFromIdOptions, GetIdFromBnsOptions, GetLastTokenIdOptions, GetNamePriceOptions, GetNamespacePriceOptions, GetNamespacePropertiesOptions, GetOwnerOptions, GetPrimaryNameOptions, GetRenewalHeightOptions, NamespaceProperties, NameInfo, ResolveNameOptions, ZonefileData, GetOwnerByIdOptions } from "./interfaces";
+import { CanNamespaceBeRegisteredOptions, CanRegisterNameOptions, CanResolveNameOptions, FetchUserOwnedNamesOptions, GetBnsFromIdOptions, GetIdFromBnsOptions, GetLastTokenIdOptions, GetNamePriceOptions, GetNamespacePriceOptions, GetNamespacePropertiesOptions, GetOwnerOptions, GetPrimaryNameOptions, GetRenewalHeightOptions, NamespaceProperties, NameInfo, ResolveNameOptions, ZonefileData, GetOwnerByIdOptions, NewZonefileData } from "./interfaces";
 export declare function getLastTokenId({ network, }: GetLastTokenIdOptions): Promise<bigint | string | number>;
 export declare function getRenewalHeight({ fullyQualifiedName, network, }: GetRenewalHeightOptions): Promise<bigint | string | number>;
 export declare function canResolveName({ fullyQualifiedName, network, }: CanResolveNameOptions): Promise<{
@@ -27,3 +27,5 @@ export declare function fetchUserOwnedNames({ senderAddress, network, }: FetchUs
     namespace: string;
 }>>;
 export declare function resolveNameZonefile({ fullyQualifiedName, network, }: ResolveNameOptions): Promise<ZonefileData | null>;
+export declare function getZonefileRaw({ fullyQualifiedName, network, }: ResolveNameOptions): Promise<any | null>;
+export declare function getZonefileProfile({ fullyQualifiedName, network, }: ResolveNameOptions): Promise<NewZonefileData | null>;
