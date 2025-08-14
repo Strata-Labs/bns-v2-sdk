@@ -59,6 +59,19 @@ async function buildTransferNameTx({ fullyQualifiedName, newOwnerAddress, sender
 }
 async function buildListInUstxTx({ id, price, commissionTraitAddress, commissionTraitName, senderAddress, network, }) {
     const bnsFunctionName = "list-in-ustx";
+    // Check if name can be traded
+    const nameInfo = await (0, readOnlyCalls_1.getBnsFromId)({ id: BigInt(id), network });
+    if (!nameInfo) {
+        throw new Error("Name not found");
+    }
+    const fullyQualifiedName = `${nameInfo.name}.${nameInfo.namespace}`;
+    const tradingStatus = await (0, readOnlyCalls_1.getNameTradingStatus)({
+        fullyQualifiedName,
+        network,
+    });
+    if (!tradingStatus.canTrade) {
+        throw new Error(`Name ${fullyQualifiedName} ${tradingStatus.reason || "cannot be traded"}`);
+    }
     return {
         contractAddress: (0, config_1.getBnsContractAddress)(network),
         contractName: config_1.BnsContractName,
@@ -85,6 +98,19 @@ async function buildUnlistInUstxTx({ id, senderAddress, network, }) {
 }
 async function buildBuyInUstxTx({ id, expectedPrice, commissionTraitAddress, commissionTraitName, senderAddress, network, }) {
     const bnsFunctionName = "buy-in-ustx";
+    // Check if name can be traded
+    const nameInfo = await (0, readOnlyCalls_1.getBnsFromId)({ id: BigInt(id), network });
+    if (!nameInfo) {
+        throw new Error("Name not found");
+    }
+    const fullyQualifiedName = `${nameInfo.name}.${nameInfo.namespace}`;
+    const tradingStatus = await (0, readOnlyCalls_1.getNameTradingStatus)({
+        fullyQualifiedName,
+        network,
+    });
+    if (!tradingStatus.canTrade) {
+        throw new Error(`Name ${fullyQualifiedName} ${tradingStatus.reason || "cannot be traded"}`);
+    }
     const currentOwner = await (0, readOnlyCalls_1.getOwnerById)({ id, network });
     if (!currentOwner) {
         throw new Error("Failed to fetch current owner of the name");

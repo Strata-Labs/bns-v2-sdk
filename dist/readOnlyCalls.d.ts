@@ -1,4 +1,10 @@
 import { CanNamespaceBeRegisteredOptions, CanRegisterNameOptions, CanResolveNameOptions, FetchUserOwnedNamesOptions, GetBnsFromIdOptions, GetIdFromBnsOptions, GetLastTokenIdOptions, GetNamePriceOptions, GetNamespacePriceOptions, GetNamespacePropertiesOptions, GetOwnerOptions, GetPrimaryNameOptions, GetRenewalHeightOptions, NamespaceProperties, NameInfo, ResolveNameOptions, ZonefileData, GetOwnerByIdOptions, NewZonefileData } from "./interfaces";
+export declare function getNameTradingStatus({ fullyQualifiedName, network, }: CanRegisterNameOptions): Promise<{
+    canTrade: boolean;
+    isValid: boolean;
+    isRevoked: boolean;
+    reason?: string;
+}>;
 export declare function getLastTokenId({ network, }: GetLastTokenIdOptions): Promise<bigint | string | number>;
 export declare function getRenewalHeight({ fullyQualifiedName, network, }: GetRenewalHeightOptions): Promise<bigint | string | number>;
 export declare function canResolveName({ fullyQualifiedName, network, }: CanResolveNameOptions): Promise<{

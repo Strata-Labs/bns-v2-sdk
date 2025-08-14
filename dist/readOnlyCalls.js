@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getNameTradingStatus = getNameTradingStatus;
 exports.getLastTokenId = getLastTokenId;
 exports.getRenewalHeight = getRenewalHeight;
 exports.canResolveName = canResolveName;
@@ -41,6 +42,40 @@ const callApi = async (endpoint, network) => {
         throw error;
     }
 };
+async function getNameTradingStatus({ fullyQualifiedName, network, }) {
+    try {
+        const response = await callApi(`/names/${fullyQualifiedName}`, network);
+        const data = response.data;
+        const isRevoked = data.revoked === true;
+        const isValid = data.is_valid === true;
+        const canTrade = isValid && !isRevoked;
+        let reason;
+        if (isRevoked) {
+            reason = "Name is revoked";
+        }
+        else if (!isValid) {
+            reason = "Name has expired";
+        }
+        return {
+            canTrade,
+            isValid,
+            isRevoked,
+            reason,
+        };
+    }
+    catch (error) {
+        if (axios_1.default.isAxiosError(error) && error.response?.status === 404) {
+            return {
+                canTrade: false,
+                isValid: false,
+                isRevoked: false,
+                reason: "Name not found",
+            };
+        }
+        debug_1.debug.error("API call failed:", error);
+        throw new Error(`Unable to verify trading status for ${fullyQualifiedName}`);
+    }
+}
 async function getLastTokenId({ network, }) {
     try {
         const response = await callApi("/token/last-id", network);
