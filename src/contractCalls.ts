@@ -1,34 +1,28 @@
 import { utf8ToBytes } from "@stacks/common";
 import {
+  boolCV,
   bufferCV,
+  bufferCVFromString,
+  contractPrincipalCV,
   hash160,
+  noneCV,
+  Pc,
+  someCV,
   standardPrincipalCV,
   uintCV,
-  someCV,
-  noneCV,
-  bufferCVFromString,
-  boolCV,
-  contractPrincipalCV,
-  Pc,
 } from "@stacks/transactions";
 import {
   BnsContractName,
   getBnsContractAddress,
-  ZonefileContractName,
   getZonefileContractAddress,
+  ZonefileContractName,
 } from "./config";
+import * as Types from "./interfaces";
 import {
   ContractCallPayload,
   FlexibleUpdateZonefileOptions,
   FormattedUpdateZonefileOptions,
 } from "./interfaces";
-import * as Types from "./interfaces";
-import {
-  decodeFQN,
-  createZonefileData,
-  stringifyZonefile,
-  createFormattedZonefileData,
-} from "./utils";
 import {
   getBnsFromId,
   getIdFromBns,
@@ -37,6 +31,12 @@ import {
   getOwner,
   getOwnerById,
 } from "./readOnlyCalls";
+import {
+  createFormattedZonefileData,
+  createZonefileData,
+  decodeFQN,
+  stringifyZonefile,
+} from "./utils";
 
 export async function buildTransferNameTx({
   fullyQualifiedName,
@@ -702,6 +702,8 @@ export async function buildRenewNameTx({
   stxToBurn,
   senderAddress,
   network,
+  includeNftTransferCondition = false,
+  currentOwner,
 }: Types.RenewNameOptions): Promise<ContractCallPayload> {
   const bnsFunctionName = "name-renewal";
   const { subdomain, namespace, name } = decodeFQN(fullyQualifiedName);
@@ -714,12 +716,43 @@ export async function buildRenewNameTx({
     .willSendEq(stxToBurn)
     .ustx();
 
+  const postConditions: any[] = [burnSTXPostCondition];
+
+  if (includeNftTransferCondition) {
+    if (!currentOwner) {
+      throw new Error(
+        "currentOwner is required when includeNftTransferCondition is true"
+      );
+    }
+
+    const id = await getIdFromBns({
+      fullyQualifiedName,
+      network,
+    });
+
+    const postConditionSender = Pc.principal(currentOwner)
+      .willSendAsset()
+      .nft(
+        `${getBnsContractAddress(network)}.${BnsContractName}::BNS-V2`,
+        uintCV(id)
+      );
+
+    const postConditionReceiver = Pc.principal(senderAddress)
+      .willNotSendAsset()
+      .nft(
+        `${getBnsContractAddress(network)}.${BnsContractName}::BNS-V2`,
+        uintCV(id)
+      );
+
+    postConditions.push(postConditionSender, postConditionReceiver);
+  }
+
   return {
     contractAddress: getBnsContractAddress(network),
     contractName: BnsContractName,
     functionName: bnsFunctionName,
     functionArgs: [bufferCVFromString(namespace), bufferCVFromString(name)],
-    postConditions: [burnSTXPostCondition],
+    postConditions,
     network,
   };
 }

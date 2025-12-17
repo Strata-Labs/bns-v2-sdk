@@ -477,7 +477,7 @@ async function buildClaimPreorderTx({ fullyQualifiedName, salt, stxToClaim, send
         network,
     };
 }
-async function buildRenewNameTx({ fullyQualifiedName, stxToBurn, senderAddress, network, }) {
+async function buildRenewNameTx({ fullyQualifiedName, stxToBurn, senderAddress, network, includeNftTransferCondition = false, currentOwner, }) {
     const bnsFunctionName = "name-renewal";
     const { subdomain, namespace, name } = (0, utils_1.decodeFQN)(fullyQualifiedName);
     if (subdomain) {
@@ -486,12 +486,29 @@ async function buildRenewNameTx({ fullyQualifiedName, stxToBurn, senderAddress, 
     const burnSTXPostCondition = transactions_1.Pc.principal(senderAddress)
         .willSendEq(stxToBurn)
         .ustx();
+    const postConditions = [burnSTXPostCondition];
+    if (includeNftTransferCondition) {
+        if (!currentOwner) {
+            throw new Error("currentOwner is required when includeNftTransferCondition is true");
+        }
+        const id = await (0, readOnlyCalls_1.getIdFromBns)({
+            fullyQualifiedName,
+            network,
+        });
+        const postConditionSender = transactions_1.Pc.principal(currentOwner)
+            .willSendAsset()
+            .nft(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}::BNS-V2`, (0, transactions_1.uintCV)(id));
+        const postConditionReceiver = transactions_1.Pc.principal(senderAddress)
+            .willNotSendAsset()
+            .nft(`${(0, config_1.getBnsContractAddress)(network)}.${config_1.BnsContractName}::BNS-V2`, (0, transactions_1.uintCV)(id));
+        postConditions.push(postConditionSender, postConditionReceiver);
+    }
     return {
         contractAddress: (0, config_1.getBnsContractAddress)(network),
         contractName: config_1.BnsContractName,
         functionName: bnsFunctionName,
         functionArgs: [(0, transactions_1.bufferCVFromString)(namespace), (0, transactions_1.bufferCVFromString)(name)],
-        postConditions: [burnSTXPostCondition],
+        postConditions,
         network,
     };
 }

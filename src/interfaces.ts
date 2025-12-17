@@ -146,6 +146,10 @@ export interface ClaimPreorderOptions extends BaseTransactionOptions {
 export interface RenewNameOptions extends BaseTransactionOptions {
   fullyQualifiedName: string;
   stxToBurn: bigint;
+  /** If true, includes NFT transfer post conditions (requires currentOwner) */
+  includeNftTransferCondition?: boolean;
+  /** The current owner of the name (required if includeNftTransferCondition is true) */
+  currentOwner?: string;
 }
 
 export interface UpdateZonefileOptions extends BaseTransactionOptions {

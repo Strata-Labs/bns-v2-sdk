@@ -18,7 +18,7 @@ export declare function buildPreorderNameTx({ fullyQualifiedName, salt, stxToBur
 export declare function buildRegisterNameTx({ fullyQualifiedName, salt, stxToBurn, senderAddress, network, }: Types.RegisterNameOptions): Promise<ContractCallPayload>;
 export declare function buildPreviousRegisterNameTx({ fullyQualifiedName, salt, stxToBurn, senderAddress, network, }: Types.RegisterNameOptions): Promise<ContractCallPayload>;
 export declare function buildClaimPreorderTx({ fullyQualifiedName, salt, stxToClaim, senderAddress, network, }: Types.ClaimPreorderOptions): Promise<ContractCallPayload>;
-export declare function buildRenewNameTx({ fullyQualifiedName, stxToBurn, senderAddress, network, }: Types.RenewNameOptions): Promise<ContractCallPayload>;
+export declare function buildRenewNameTx({ fullyQualifiedName, stxToBurn, senderAddress, network, includeNftTransferCondition, currentOwner, }: Types.RenewNameOptions): Promise<ContractCallPayload>;
 export declare function buildUpdateZonefileTx({ fullyQualifiedName, zonefileInputs, senderAddress, network, }: Types.UpdateZonefileOptions): Promise<ContractCallPayload>;
 export declare function buildUpdateZonefileFlexibleTx({ fullyQualifiedName, zonefileData, senderAddress, network, }: FlexibleUpdateZonefileOptions): Promise<ContractCallPayload>;
 export declare function buildUpdateZonefileFormattedTx({ fullyQualifiedName, zonefileData, senderAddress, network, }: FormattedUpdateZonefileOptions): Promise<ContractCallPayload>;
