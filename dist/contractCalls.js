@@ -25,8 +25,8 @@ exports.buildUpdateZonefileFormattedTx = buildUpdateZonefileFormattedTx;
 const common_1 = require("@stacks/common");
 const transactions_1 = require("@stacks/transactions");
 const config_1 = require("./config");
-const utils_1 = require("./utils");
 const readOnlyCalls_1 = require("./readOnlyCalls");
+const utils_1 = require("./utils");
 async function buildTransferNameTx({ fullyQualifiedName, newOwnerAddress, senderAddress, network, }) {
     const bnsFunctionName = "transfer";
     const { subdomain, namespace, name } = (0, utils_1.decodeFQN)(fullyQualifiedName);

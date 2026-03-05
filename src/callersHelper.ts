@@ -9,6 +9,7 @@ import { BnsReadOnlyOptions } from "./interfaces";
 import { StacksMainnet, StacksTestnet } from "@stacks/network";
 import { getFallbackUrl, getNetwork } from "./network";
 import { debug } from "./debug";
+import { withRetry } from "./retry";
 
 async function executeReadOnlyCall(
   options: BnsReadOnlyOptions,
@@ -58,10 +59,10 @@ async function executeReadOnlyCall(
   }
 
   try {
-    return await attemptCall(network.coreApiUrl);
+    return await withRetry(() => attemptCall(network.coreApiUrl));
   } catch (error) {
     if (fallbackUrl && fallbackUrl !== network.coreApiUrl) {
-      return await attemptCall(fallbackUrl);
+      return await withRetry(() => attemptCall(fallbackUrl));
     }
     throw error;
   }

@@ -7,6 +7,7 @@ const config_1 = require("./config");
 const network_1 = require("@stacks/network");
 const network_2 = require("./network");
 const debug_1 = require("./debug");
+const retry_1 = require("./retry");
 async function executeReadOnlyCall(options, contractAddress, contractName, network, isZonefile = false) {
     const networkType = network instanceof network_1.StacksMainnet ? "mainnet" : "testnet";
     const fallbackUrl = (0, network_2.getFallbackUrl)(networkType);
@@ -43,11 +44,11 @@ async function executeReadOnlyCall(options, contractAddress, contractName, netwo
         }
     }
     try {
-        return await attemptCall(network.coreApiUrl);
+        return await (0, retry_1.withRetry)(() => attemptCall(network.coreApiUrl));
     }
     catch (error) {
         if (fallbackUrl && fallbackUrl !== network.coreApiUrl) {
-            return await attemptCall(fallbackUrl);
+            return await (0, retry_1.withRetry)(() => attemptCall(fallbackUrl));
         }
         throw error;
     }

@@ -4,16 +4,25 @@ The official BNS V2 SDK for interacting with the Stacks Blockchain. This SDK pro
 
 ## Table of Contents
 
-1. [Installation](#installation)
-2. [Important Note About Transactions](#important-note-about-transactions)
-3. [Features](#features)
-4. [Read-Only Functions](#read-only-functions)
-5. [Contract Calls](#contract-calls)
-6. [Subdomain Management](#subdomain-management)
-7. [Network Configuration](#network-configuration)
-8. [Error Handling](#error-handling)
-9. [Support](#support)
-10. [License](#license)
+1. [Getting Started](#getting-started)
+2. [Installation](#installation)
+3. [Important Note About Transactions](#important-note-about-transactions)
+4. [Features](#features)
+5. [Debug Mode](#debug-mode)
+6. [Read-Only Functions](#read-only-functions)
+7. [Contract Calls](#contract-calls)
+8. [Subdomain Management](#subdomain-management)
+9. [Transaction Tracking](#transaction-tracking)
+10. [Retry Configuration](#retry-configuration)
+11. [Network Configuration](#network-configuration)
+12. [Error Handling](#error-handling)
+13. [Examples](#examples)
+14. [Support](#support)
+15. [License](#license)
+
+## Getting Started
+
+New to the SDK? Check out the **[Getting Started Guide](docs/GETTING_STARTED.md)** for a complete walkthrough covering installation, core concepts, and all major operations.
 
 ## Installation
 
@@ -45,8 +54,22 @@ To complete transactions, you'll need to:
 - Comprehensive API for BNS operations
 - Supports both mainnet and testnet
 - Built-in error handling and validation
-- Automatic fallback mechanisms
+- Automatic API-to-contract fallback mechanisms
+- Automatic retry with exponential backoff
+- Transaction status tracking and polling
 - Extensive read-only functions
+
+## Debug Mode
+
+Enable verbose logging to see what the SDK is doing under the hood:
+
+```typescript
+import { debug } from "bns-v2-sdk";
+
+debug.enable();
+// ... SDK calls now log to console
+debug.disable();
+```
 
 ## Read-Only Functions
 
@@ -67,6 +90,8 @@ import {
   getPrimaryName,
   fetchUserOwnedNames,
   resolveNameZonefile,
+  getZonefileRaw,
+  getZonefileProfile,
 } from "bns-v2-sdk";
 
 // Check name availability
@@ -117,7 +142,7 @@ const lastId = await getLastTokenId({
 });
 
 // Get BNS information from token ID
-const nameInfo = await getBnsFromId({
+const bnsInfo = await getBnsFromId({
   id: 123n,
   network: "mainnet",
 });
@@ -142,6 +167,18 @@ const ownedNames = await fetchUserOwnedNames({
 
 // Get zonefile data (only for mainnet unless you have your own testnet node)
 const zonefile = await resolveNameZonefile({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
+
+// Get raw zonefile data
+const rawZonefile = await getZonefileRaw({
+  fullyQualifiedName: "example.btc",
+  network: "mainnet",
+});
+
+// Get structured profile zonefile data
+const profile = await getZonefileProfile({
   fullyQualifiedName: "example.btc",
   network: "mainnet",
 });
@@ -184,10 +221,14 @@ import {
   buildNameClaimFastTx,
   buildPreorderNameTx,
   buildRegisterNameTx,
+  buildPreviousRegisterNameTx,
+  buildClaimPreorderTx,
   buildRenewNameTx,
   buildTransferNameTx,
   buildSetPrimaryNameTx,
   buildUpdateZonefileTx,
+  buildUpdateZonefileFlexibleTx,
+  buildUpdateZonefileFormattedTx,
 } from "bns-v2-sdk";
 
 // Fast claim a name (warning: snipeable)
@@ -239,7 +280,7 @@ const setPrimaryPayload = await buildSetPrimaryNameTx({
   network: "mainnet",
 });
 
-// Update zonefile
+// Update zonefile (structured format)
 const updateZonefilePayload = await buildUpdateZonefileTx({
   fullyQualifiedName: "myname.btc",
   zonefileInputs: {
@@ -252,6 +293,52 @@ const updateZonefilePayload = await buildUpdateZonefileTx({
     btc: "",
     subdomains: [],
   },
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Update zonefile with flexible JSON data (any key-value pairs)
+const flexPayload = await buildUpdateZonefileFlexibleTx({
+  fullyQualifiedName: "myname.btc",
+  zonefileData: {
+    btc: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    twitter: "@satoshi",
+    website: "https://example.com",
+  },
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Update zonefile with formatted data (structured addresses, social, etc.)
+const formattedPayload = await buildUpdateZonefileFormattedTx({
+  fullyQualifiedName: "myname.btc",
+  zonefileData: {
+    owner: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+    addresses: [
+      { network: "bitcoin", address: "bc1q...", type: "p2wpkh" },
+    ],
+    social: [
+      { platform: "twitter", username: "@example" },
+    ],
+  },
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Re-register a previously owned name (includes NFT transfer post conditions)
+const prevRegisterPayload = await buildPreviousRegisterNameTx({
+  fullyQualifiedName: "myname.btc",
+  salt: "random-salt-string",
+  stxToBurn: 1000000n,
+  senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+  network: "mainnet",
+});
+
+// Claim STX back from a preorder
+const claimPayload = await buildClaimPreorderTx({
+  fullyQualifiedName: "myname.btc",
+  salt: "random-salt-string",
+  stxToClaim: "1000000",
   senderAddress: "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
   network: "mainnet",
 });
@@ -426,64 +513,102 @@ The BNS SDK provides functionality to manage subdomains through zonefile manipul
 
 ### Zonefile Structure
 
+The SDK provides two zonefile types:
+
+- **`ZonefileData`** — Legacy format used by `buildUpdateZonefileTx`. Has required fields: `owner`, `general`, `twitter`, `url`, `nostr`, `lightning`, `btc`.
+- **`NewZonefileData`** — Recommended format used by `buildUpdateZonefileFormattedTx`. Uses structured `social`, `addresses`, and `meta` arrays.
+
 ```typescript
-interface ZonefileData {
-  owner: string;            // Parent domain owner address
-  general: string;          // General profile information
-  twitter: string;          // Twitter handle
-  url: string;             // Website URL
-  nostr: string;           // Nostr public key
-  lightning: string;        // Lightning address
-  btc: string;             // Bitcoin address
-  // Either subdomains OR externalSubdomainFile must be present
-  subdomains?: SubdomainMap;
-  externalSubdomainFile?: string;
+// Recommended format (used with buildUpdateZonefileFormattedTx)
+interface NewZonefileData {
+  owner: string;              // Parent domain owner address
+  btc?: string;               // Bitcoin address
+  bio?: string;               // Short biography
+  website?: string;           // Website URL
+  pfp?: string;               // Profile picture URL
+  name?: string;              // Display name
+  location?: string;          // Location
+  social?: SocialEntry[];     // Social media accounts
+  addresses?: AddressEntry[]; // Multi-chain addresses
+  meta?: MetaEntry[];         // Custom key-value pairs
+  // Either subdomains OR externalSubdomainsFile can be present
+  subdomains?: SubdomainMap[];
+  externalSubdomainsFile?: string;
 }
+
+// Each SubdomainMap is an object with a single key (the subdomain label)
+// mapping to the subdomain's properties
+type SubdomainMap = Record<string, SubdomainProperties>;
 
 interface SubdomainProperties {
   owner: string;
-  general: string;
-  twitter: string;
-  url: string;
-  nostr: string;
-  lightning: string;
-  btc: string;
+  general?: string;
+  twitter?: string;
+  url?: string;
+  nostr?: string;
+  lightning?: string;
+  btc?: string;
+  bio?: string;
+  website?: string;
+  pfp?: string;
+  name?: string;
+  location?: string;
+  social?: SocialEntry[];
+  addresses?: AddressEntry[];
+}
+
+interface SocialEntry {
+  platform: string;   // e.g. "twitter", "github", "discord", "telegram"
+  username: string;
+}
+
+interface AddressEntry {
+  network: string;    // e.g. "bitcoin", "ethereum", "solana", "stacks"
+  address: string;
+  type: string;       // e.g. "p2wpkh", "p2tr", "wallet"
+}
+
+interface MetaEntry {
+  name: string;       // Custom key name
+  value: string;      // Custom value
 }
 ```
 
 ### Direct Zonefile Storage (On-chain)
 
 ```typescript
-import { buildUpdateZonefileTx } from '@stacks/bns';
-import type { ZonefileData, SubdomainMap } from '@stacks/bns';
+import { buildUpdateZonefileFormattedTx } from 'bns-v2-sdk';
+import type { NewZonefileData, SubdomainMap } from 'bns-v2-sdk';
 
 async function updateDirectSubdomains() {
-  const subdomains: SubdomainMap = {
-    "sub1": {
-      owner: "SP2ZNGJ85ENDY6QRHQ5P2D4FXQJ6INMT00GBGJ2QX",
-      general: "Profile information",
-      twitter: "@example",
-      url: "https://example.com",
-      nostr: "npub1...",
-      lightning: "lightning-address",
-      btc: "bc1..."
+  const subdomains: SubdomainMap[] = [
+    {
+      "sub1": {
+        owner: "SP2ZNGJ85ENDY6QRHQ5P2D4FXQJ6INMT00GBGJ2QX",
+        bio: "Profile information",
+        website: "https://example.com",
+        btc: "bc1...",
+        social: [
+          { platform: "twitter", username: "example" }
+        ]
+      }
     }
-  };
+  ];
 
-  const zonefileData: ZonefileData = {
+  const zonefileData: NewZonefileData = {
     owner: "SP3FGQ8Z7JY9BWYZ5WM53E0M9NK7WHJF0691NZ159",
-    general: "Parent domain info",
-    twitter: "@parent",
-    url: "https://parent.com",
-    nostr: "npub_parent",
-    lightning: "parent-lightning",
+    bio: "Parent domain info",
+    website: "https://parent.com",
     btc: "bc1_parent",
+    social: [
+      { platform: "twitter", username: "parent" }
+    ],
     subdomains: subdomains
   };
 
-  const tx = await buildUpdateZonefileTx({
+  const tx = await buildUpdateZonefileFormattedTx({
     fullyQualifiedName: "mydomain.btc",
-    zonefileInputs: zonefileData,
+    zonefileData: zonefileData,
     senderAddress: "SP3FGQ8Z7JY9BWYZ5WM53E0M9NK7WHJF0691NZ159",
     network: "mainnet"
   });
@@ -496,20 +621,20 @@ For managing large numbers of subdomains (>100), use external storage:
 
 ```typescript
 async function updateExternalSubdomains() {
-  const zonefileData: ZonefileData = {
+  const zonefileData: NewZonefileData = {
     owner: "SP3FGQ8Z7JY9BWYZ5WM53E0M9NK7WHJF0691NZ159",
-    general: "Parent domain info",
-    twitter: "@parent",
-    url: "https://parent.com",
-    nostr: "npub_parent",
-    lightning: "parent-lightning",
+    bio: "Parent domain info",
+    website: "https://parent.com",
     btc: "bc1_parent",
-    externalSubdomainFile: "https://your-bucket.s3.amazonaws.com/subdomains.json"
+    social: [
+      { platform: "twitter", username: "parent" }
+    ],
+    externalSubdomainsFile: "https://your-bucket.s3.amazonaws.com/subdomains.json"
   };
 
-  const tx = await buildUpdateZonefileTx({
+  const tx = await buildUpdateZonefileFormattedTx({
     fullyQualifiedName: "mydomain.btc",
-    zonefileInputs: zonefileData,
+    zonefileData: zonefileData,
     senderAddress: "SP3FGQ8Z7JY9BWYZ5WM53E0M9NK7WHJF0691NZ159",
     network: "mainnet"
   });
@@ -531,6 +656,48 @@ async function updateExternalSubdomains() {
    - On-chain storage: Limited by BNS contract
    - External S3 file: Maximum 50MB
    - Recommended external storage for >100 subdomains
+
+## Transaction Tracking
+
+After broadcasting a transaction, track its status until confirmation:
+
+```typescript
+import { getTransactionStatus, waitForTransaction } from "bns-v2-sdk";
+
+// One-shot status check
+const status = await getTransactionStatus("0xabc123...", "mainnet");
+console.log(status.status); // "pending" | "success" | "abort_by_response" | ...
+
+// Poll until confirmed
+const result = await waitForTransaction({
+  txId: "0xabc123...",
+  network: "mainnet",
+  pollingIntervalMs: 10_000,  // every 10s (default)
+  timeoutMs: 600_000,         // 10min timeout (default)
+  onStatusChange: (update) => console.log("Status:", update.status),
+});
+
+console.log(result.status);      // "success"
+console.log(result.blockHeight); // confirmed block number
+```
+
+## Retry Configuration
+
+API calls automatically retry on transient failures (429, 500, 502, 503, 504) with exponential backoff. Default: 3 retries.
+
+```typescript
+import { configureRetry } from "bns-v2-sdk";
+
+// Customize
+configureRetry({
+  maxRetries: 5,
+  initialDelayMs: 2000,
+  maxDelayMs: 30000,
+});
+
+// Disable retries
+configureRetry({ maxRetries: 0 });
+```
 
 ## Network Configuration
 
@@ -557,6 +724,23 @@ try {
     // Handle other errors
   }
 }
+```
+
+## Examples
+
+See the [`examples/`](examples/) directory for complete, runnable scripts:
+
+- `01-check-name.ts` — Name availability and info lookups
+- `02-lookup-address.ts` — Fetch names by address, primary name
+- `03-register-name.ts` — Two-step preorder + register flow
+- `04-marketplace.ts` — List, buy, and unlist operations
+- `05-track-transaction.ts` — Transaction status tracking
+- `06-zonefile.ts` — Zonefile read and update operations
+
+```bash
+cd examples
+npm install
+npx ts-node 01-check-name.ts
 ```
 
 ## Support

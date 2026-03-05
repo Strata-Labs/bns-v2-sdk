@@ -160,11 +160,11 @@ export interface BaseZonefileData {
     btc: string;
 }
 export type ZonefileData = BaseZonefileData & ({
-    externalSubdomainFile: string;
+    externalSubdomainsFile: string;
     subdomains?: never;
 } | {
-    externalSubdomainFile?: never;
-    subdomains: SubdomainMap;
+    externalSubdomainsFile?: never;
+    subdomains: SubdomainMap[];
 });
 export interface CanRegisterNameOptions {
     fullyQualifiedName: string;

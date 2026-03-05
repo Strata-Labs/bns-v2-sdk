@@ -1,0 +1,12 @@
+{
+  "name": "bns-v2-sdk-examples",
+  "private": true,
+  "description": "Example scripts for bns-v2-sdk",
+  "dependencies": {
+    "bns-v2-sdk": "file:.."
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.2.2"
+  }
+}

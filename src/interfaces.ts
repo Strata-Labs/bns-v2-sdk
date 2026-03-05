@@ -191,8 +191,8 @@ export interface BaseZonefileData {
 
 export type ZonefileData = BaseZonefileData &
   (
-    | { externalSubdomainFile: string; subdomains?: never }
-    | { externalSubdomainFile?: never; subdomains: SubdomainMap }
+    | { externalSubdomainsFile: string; subdomains?: never }
+    | { externalSubdomainsFile?: never; subdomains: SubdomainMap[] }
   );
 
 // Read-only operation interfaces

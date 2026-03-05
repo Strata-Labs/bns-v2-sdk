@@ -109,15 +109,17 @@ function parseZonefile(zonefileString) {
             lightning: parsed.lightning || "",
             btc: parsed.btc || "",
         };
-        if (parsed.externalSubdomainFile) {
+        // Accept both key names for backward compat
+        const externalFile = parsed.externalSubdomainsFile ?? parsed.externalSubdomainFile;
+        if (externalFile) {
             return {
                 ...baseData,
-                externalSubdomainFile: parsed.externalSubdomainFile,
+                externalSubdomainsFile: externalFile,
             };
         }
         return {
             ...baseData,
-            subdomains: parsed.subdomains || {},
+            subdomains: Array.isArray(parsed.subdomains) ? parsed.subdomains : [],
         };
     }
     catch (error) {
@@ -130,7 +132,7 @@ function parseZonefile(zonefileString) {
             nostr: "",
             lightning: "",
             btc: "",
-            subdomains: {},
+            subdomains: [],
         };
     }
 }
@@ -144,24 +146,24 @@ function createZonefileData(params) {
         lightning: params.lightning || "",
         btc: params.btc || "",
     };
-    if ("externalSubdomainFile" in params && params.externalSubdomainFile) {
-        const fileUrl = params.externalSubdomainFile;
+    if ("externalSubdomainsFile" in params && params.externalSubdomainsFile) {
+        const fileUrl = params.externalSubdomainsFile;
         if (!isValidHttpsUrl(fileUrl) ||
             !hasJsonExtension(fileUrl) ||
             !isSafeDomain(fileUrl) ||
             !isAllowedS3Domain(fileUrl) ||
             !hasNoQueryOrFragment(fileUrl) ||
             !noUserInfo(fileUrl)) {
-            throw new Error("Invalid externalSubdomainFile URL");
+            throw new Error("Invalid externalSubdomainsFile URL");
         }
         return {
             ...baseData,
-            externalSubdomainFile: fileUrl,
+            externalSubdomainsFile: fileUrl,
         };
     }
     return {
         ...baseData,
-        subdomains: "subdomains" in params ? params.subdomains : {},
+        subdomains: "subdomains" in params ? params.subdomains : [],
     };
 }
 function stringifyZonefile(zonefileData) {

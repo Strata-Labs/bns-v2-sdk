@@ -97,3 +97,21 @@ export type {
 } from "./interfaces";
 
 export { debug } from "./debug";
+
+// Network configuration
+export { configureNetwork } from "./network";
+
+// Retry configuration
+export { configureRetry } from "./retry";
+export type { RetryConfig } from "./retry";
+
+// Transaction tracking
+export { waitForTransaction, getTransactionStatus } from "./tracking";
+export type {
+  TransactionStatus,
+  TransactionStatusResult,
+  TrackTransactionOptions,
+} from "./tracking";
+
+// Config types
+export type { NetworkType } from "./config";

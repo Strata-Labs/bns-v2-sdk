@@ -28,19 +28,22 @@ const utils_1 = require("./utils");
 const config_1 = require("./config");
 const callersHelper_1 = require("./callersHelper");
 const debug_1 = require("./debug");
+const retry_1 = require("./retry");
 const API_BASE_URL = "https://api.bnsv2.com";
 const callApi = async (endpoint, network) => {
-    try {
-        const networkPrefix = network === "testnet" ? "/testnet" : "";
-        const url = `${API_BASE_URL}${networkPrefix}${endpoint}`;
-        debug_1.debug.log("Making API call to:", url);
-        const response = await axios_1.default.get(url);
-        return response.data;
-    }
-    catch (error) {
-        debug_1.debug.error("API call failed:", error);
-        throw error;
-    }
+    const networkPrefix = network === "testnet" ? "/testnet" : "";
+    const url = `${API_BASE_URL}${networkPrefix}${endpoint}`;
+    debug_1.debug.log("Making API call to:", url);
+    return (0, retry_1.withRetry)(async () => {
+        try {
+            const response = await axios_1.default.get(url);
+            return response.data;
+        }
+        catch (error) {
+            debug_1.debug.error("API call failed:", error);
+            throw error;
+        }
+    });
 };
 async function getNameTradingStatus({ fullyQualifiedName, network, }) {
     try {

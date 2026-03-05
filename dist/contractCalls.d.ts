@@ -1,5 +1,5 @@
-import { ContractCallPayload, FlexibleUpdateZonefileOptions, FormattedUpdateZonefileOptions } from "./interfaces";
 import * as Types from "./interfaces";
+import { ContractCallPayload, FlexibleUpdateZonefileOptions, FormattedUpdateZonefileOptions } from "./interfaces";
 export declare function buildTransferNameTx({ fullyQualifiedName, newOwnerAddress, senderAddress, network, }: Types.TransferNameOptions): Promise<ContractCallPayload>;
 export declare function buildListInUstxTx({ id, price, commissionTraitAddress, commissionTraitName, senderAddress, network, }: Types.ListInUstxOptions): Promise<ContractCallPayload>;
 export declare function buildUnlistInUstxTx({ id, senderAddress, network, }: Types.UnlistInUstxOptions): Promise<ContractCallPayload>;

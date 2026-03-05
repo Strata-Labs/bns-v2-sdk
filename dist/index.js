@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.debug = exports.buildUpdateZonefileFormattedTx = exports.buildUpdateZonefileFlexibleTx = exports.buildUpdateZonefileTx = exports.buildRenewNameTx = exports.buildClaimPreorderTx = exports.buildPreviousRegisterNameTx = exports.buildRegisterNameTx = exports.buildPreorderNameTx = exports.buildNameClaimFastTx = exports.buildNamespaceFreezePriceTx = exports.buildNamespaceUpdatePriceTx = exports.buildImportNameTx = exports.buildTurnOffManagerTransfersTx = exports.buildLaunchNamespaceTx = exports.buildRevealNamespaceTx = exports.buildPreorderNamespaceTx = exports.buildFreezeManagerTx = exports.buildSetPrimaryNameTx = exports.buildBuyInUstxTx = exports.buildUnlistInUstxTx = exports.buildListInUstxTx = exports.buildTransferNameTx = exports.getZonefileProfile = exports.getZonefileRaw = exports.getIdFromBns = exports.resolveNameZonefile = exports.fetchUserOwnedNames = exports.getPrimaryName = exports.getBnsFromId = exports.getNameInfo = exports.getNamespaceProperties = exports.canNamespaceBeRegistered = exports.getNamePrice = exports.getNamespacePrice = exports.getOwnerById = exports.getOwner = exports.canResolveName = exports.getRenewalHeight = exports.getLastTokenId = exports.canRegisterName = void 0;
+exports.getTransactionStatus = exports.waitForTransaction = exports.configureRetry = exports.configureNetwork = exports.debug = exports.buildUpdateZonefileFormattedTx = exports.buildUpdateZonefileFlexibleTx = exports.buildUpdateZonefileTx = exports.buildRenewNameTx = exports.buildClaimPreorderTx = exports.buildPreviousRegisterNameTx = exports.buildRegisterNameTx = exports.buildPreorderNameTx = exports.buildNameClaimFastTx = exports.buildNamespaceFreezePriceTx = exports.buildNamespaceUpdatePriceTx = exports.buildImportNameTx = exports.buildTurnOffManagerTransfersTx = exports.buildLaunchNamespaceTx = exports.buildRevealNamespaceTx = exports.buildPreorderNamespaceTx = exports.buildFreezeManagerTx = exports.buildSetPrimaryNameTx = exports.buildBuyInUstxTx = exports.buildUnlistInUstxTx = exports.buildListInUstxTx = exports.buildTransferNameTx = exports.getZonefileProfile = exports.getZonefileRaw = exports.getIdFromBns = exports.resolveNameZonefile = exports.fetchUserOwnedNames = exports.getPrimaryName = exports.getBnsFromId = exports.getNameInfo = exports.getNamespaceProperties = exports.canNamespaceBeRegistered = exports.getNamePrice = exports.getNamespacePrice = exports.getOwnerById = exports.getOwner = exports.canResolveName = exports.getRenewalHeight = exports.getLastTokenId = exports.canRegisterName = void 0;
 // Read-only functions
 var readOnlyCalls_1 = require("./readOnlyCalls");
 Object.defineProperty(exports, "canRegisterName", { enumerable: true, get: function () { return readOnlyCalls_1.canRegisterName; } });
@@ -47,3 +47,13 @@ Object.defineProperty(exports, "buildUpdateZonefileFlexibleTx", { enumerable: tr
 Object.defineProperty(exports, "buildUpdateZonefileFormattedTx", { enumerable: true, get: function () { return contractCalls_1.buildUpdateZonefileFormattedTx; } });
 var debug_1 = require("./debug");
 Object.defineProperty(exports, "debug", { enumerable: true, get: function () { return debug_1.debug; } });
+// Network configuration
+var network_1 = require("./network");
+Object.defineProperty(exports, "configureNetwork", { enumerable: true, get: function () { return network_1.configureNetwork; } });
+// Retry configuration
+var retry_1 = require("./retry");
+Object.defineProperty(exports, "configureRetry", { enumerable: true, get: function () { return retry_1.configureRetry; } });
+// Transaction tracking
+var tracking_1 = require("./tracking");
+Object.defineProperty(exports, "waitForTransaction", { enumerable: true, get: function () { return tracking_1.waitForTransaction; } });
+Object.defineProperty(exports, "getTransactionStatus", { enumerable: true, get: function () { return tracking_1.getTransactionStatus; } });

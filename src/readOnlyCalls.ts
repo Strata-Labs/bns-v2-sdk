@@ -48,21 +48,24 @@ import {
 } from "./interfaces";
 import { bnsV2ReadOnlyCall, zonefileReadOnlyCall } from "./callersHelper";
 import { debug } from "./debug";
+import { withRetry } from "./retry";
 
 const API_BASE_URL = "https://api.bnsv2.com";
 
 const callApi = async (endpoint: string, network: string) => {
-  try {
-    const networkPrefix = network === "testnet" ? "/testnet" : "";
-    const url = `${API_BASE_URL}${networkPrefix}${endpoint}`;
-    debug.log("Making API call to:", url);
+  const networkPrefix = network === "testnet" ? "/testnet" : "";
+  const url = `${API_BASE_URL}${networkPrefix}${endpoint}`;
+  debug.log("Making API call to:", url);
 
-    const response = await axios.get(url);
-    return response.data;
-  } catch (error) {
-    debug.error("API call failed:", error);
-    throw error;
-  }
+  return withRetry(async () => {
+    try {
+      const response = await axios.get(url);
+      return response.data;
+    } catch (error) {
+      debug.error("API call failed:", error);
+      throw error;
+    }
+  });
 };
 
 export async function getNameTradingStatus({
